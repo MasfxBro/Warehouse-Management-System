@@ -42,13 +42,15 @@ class RackLocation extends Model
         'Aisle',
         'Level',
         'Kapasitas',
+        'kapasitas_terisi',
     ];
 
     /**
      * Cast tipe data kolom.
      */
     protected $casts = [
-        'Kapasitas' => 'integer',
+        'Kapasitas'         => 'integer',
+        'kapasitas_terisi'  => 'integer',
     ];
 
     // =========================================================

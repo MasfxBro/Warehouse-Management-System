@@ -54,6 +54,9 @@ class MasterBarang extends Model
         'Nama',
         'Kategori',
         'Min_Stok',
+        'stok_real',
+        'harga',
+        'satuan',
         'Barcode_ID',
         'Rack_ID',
     ];
@@ -62,8 +65,10 @@ class MasterBarang extends Model
      * Cast tipe data kolom.
      */
     protected $casts = [
-        'Min_Stok' => 'integer',
-        'Rack_ID'  => 'integer',
+        'Min_Stok'  => 'integer',
+        'stok_real' => 'integer',
+        'harga'     => 'decimal:2',
+        'Rack_ID'   => 'integer',
     ];
 
     // =========================================================
@@ -92,5 +97,41 @@ class MasterBarang extends Model
     public function outboundDetails(): HasMany
     {
         return $this->hasMany(OutboundDetail::class, 'SKU', 'SKU');
+    }
+
+    /**
+     * Satu barang bisa memiliki banyak record stock opname.
+     */
+    public function stockOpname(): HasMany
+    {
+        return $this->hasMany(StockOpname::class, 'SKU', 'SKU');
+    }
+
+    // =========================================================
+    // HELPER METHODS
+    // =========================================================
+
+    /**
+     * Cek apakah stok berada di bawah minimum (perlu reorder).
+     */
+    public function needsReorder(): bool
+    {
+        return $this->stok_real < $this->Min_Stok;
+    }
+
+    /**
+     * Get status stok (AMAN/REORDER).
+     */
+    public function getStockStatus(): string
+    {
+        return $this->needsReorder() ? 'REORDER' : 'AMAN';
+    }
+
+    /**
+     * Get nilai persediaan (stok * harga).
+     */
+    public function getNilaiPersediaan(): float
+    {
+        return $this->stok_real * $this->harga;
     }
 }

@@ -106,4 +106,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(OutboundTransaction::class, 'User_ID', 'id');
     }
+
+    /**
+     * Satu user bisa melakukan banyak stock opname.
+     */
+    public function stockOpname(): HasMany
+    {
+        return $this->hasMany(StockOpname::class, 'user_id', 'id');
+    }
 }

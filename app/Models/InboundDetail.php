@@ -1,4 +1,4 @@
-<?php
+  <?php
 
 namespace App\Models;
 
@@ -47,15 +47,17 @@ class InboundDetail extends Model
         'Rack_ID',
         'Qty',
         'Batch',
+        'expired_date',
     ];
 
     /**
      * Cast tipe data kolom.
      */
     protected $casts = [
-        'Inbound_ID' => 'integer',
-        'Rack_ID'    => 'integer',
-        'Qty'        => 'integer',
+        'Inbound_ID'   => 'integer',
+        'Rack_ID'      => 'integer',
+        'Qty'          => 'integer',
+        'expired_date' => 'date',
     ];
 
     // =========================================================

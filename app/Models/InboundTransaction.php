@@ -27,7 +27,7 @@ class InboundTransaction extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /**
+    /** 
      * Nama tabel sesuai ERD.
      */
     protected $table = 'inbound_transactions';
@@ -45,6 +45,8 @@ class InboundTransaction extends Model
         'Tanggal',
         'Supplier_ID',
         'User_ID',
+        'status',
+        'notes',
     ];
 
     /**

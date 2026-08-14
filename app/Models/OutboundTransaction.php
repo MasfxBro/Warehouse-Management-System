@@ -47,6 +47,8 @@ class OutboundTransaction extends Model
         'Customer_ID',
         'No_Surat_Jalan',
         'User_ID',
+        'status',
+        'notes',
     ];
 
     /**
