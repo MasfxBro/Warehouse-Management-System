@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -44,12 +44,16 @@ Route::middleware('auth')->group(function () {
     
     // Inventory
     Route::get('/inventory/kartu-stok', [KartuStokController::class, 'index'])->name('inventory.kartu-stok');
+    Route::get('/inventory/kartu-stok/export/excel', [KartuStokController::class, 'exportExcel'])->name('inventory.kartu-stok.export-excel');
+    Route::get('/inventory/kartu-stok/export/pdf', [KartuStokController::class, 'exportPdf'])->name('inventory.kartu-stok.export-pdf');
     Route::get('/inventory/kartu-stok/{sku}', [KartuStokController::class, 'show'])->name('inventory.kartu-stok.show');
     
     Route::middleware('role:admin,manager')->prefix('inventory/stock-opname')->name('inventory.stock-opname.')->group(function () {
         Route::get('/', [StockOpnameController::class, 'index'])->name('index');
         Route::get('/create', [StockOpnameController::class, 'create'])->name('create');
         Route::post('/', [StockOpnameController::class, 'store'])->name('store');
+        Route::get('/export/excel', [StockOpnameController::class, 'exportExcel'])->name('export-excel');
+        Route::get('/export/pdf', [StockOpnameController::class, 'exportPdf'])->name('export-pdf');
     });
     
     // Laporan (Admin & Manager)

@@ -12,23 +12,36 @@
 
     <!-- Export Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Laporan Inventory -->
+        <!-- Laporan Inventory & Kartu Stok -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-6">
                 <svg class="w-12 h-12 text-white mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                 </svg>
-                <h3 class="text-xl font-bold text-white">Laporan Inventory</h3>
-                <p class="text-blue-100 text-sm mt-1">Master data barang & stok</p>
+                <h3 class="text-xl font-bold text-white">Kartu Stok & Inventory</h3>
+                <p class="text-blue-100 text-sm mt-1">Ringkasan stok terhitung & nilai persediaan</p>
             </div>
-            <div class="p-6">
-                <p class="text-gray-600 text-sm mb-4">Export semua data inventory meliputi SKU, nama, kategori, stok, harga, nilai persediaan, dan status stok.</p>
-                <a href="{{ route('laporan.inventory.export') }}" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-semibold transition-colors duration-200">
-                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Download Excel
-                </a>
+            <div class="p-6 space-y-3">
+                <p class="text-gray-600 text-xs">Export ringkasan Kartu Stok (SKU, Nama, Stok Awal, Total Masuk/Keluar, Stok Akhir, Status):</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="{{ route('inventory.kartu-stok.export-excel') }}" class="text-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-semibold text-xs transition-colors duration-200">
+                        Excel (.csv)
+                    </a>
+                    <a href="{{ route('inventory.kartu-stok.export-pdf') }}" target="_blank" class="text-center bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-semibold text-xs transition-colors duration-200">
+                        PDF (.pdf)
+                    </a>
+                </div>
+                <div class="border-t pt-3">
+                    <p class="text-gray-600 text-xs mb-2">Export Stock Opname (Audit Fisik):</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <a href="{{ route('inventory.stock-opname.export-excel') }}" class="text-center bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg font-semibold text-xs transition-colors duration-200">
+                            Opname Excel
+                        </a>
+                        <a href="{{ route('inventory.stock-opname.export-pdf') }}" target="_blank" class="text-center bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg font-semibold text-xs transition-colors duration-200">
+                            Opname PDF
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
 
