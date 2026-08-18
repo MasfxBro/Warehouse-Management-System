@@ -37,6 +37,7 @@ class Customer extends Model
     protected $fillable = [
         'Nama',
         'Alamat',
+        'Kontak',
     ];
 
     // =========================================================

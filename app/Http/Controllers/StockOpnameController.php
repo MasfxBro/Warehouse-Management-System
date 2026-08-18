@@ -42,8 +42,8 @@ class StockOpnameController extends Controller
             'tanggal_opname' => $validated['tanggal_opname'],
             'stok_sistem' => $barang->stok_real,
             'stok_fisik' => $validated['stok_fisik'],
-            'action_taken' => $validated['action_taken'],
-            'notes' => $validated['notes'],
+            'action_taken' => $validated['action_taken'] ?? null,
+            'notes' => $validated['notes'] ?? null,
             'user_id' => auth()->id(),
         ]);
         

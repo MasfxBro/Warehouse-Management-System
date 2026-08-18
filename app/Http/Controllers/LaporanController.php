@@ -6,9 +6,7 @@ use App\Models\MasterBarang;
 use App\Models\InboundTransaction;
 use App\Models\OutboundTransaction;
 use Illuminate\Http\Request;
-use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
+use Illuminate\Support\Facades\Response;
 
 class LaporanController extends Controller
 {
@@ -21,30 +19,38 @@ class LaporanController extends Controller
     {
         $barangs = MasterBarang::with('rackLocation')->get();
         
-        return Excel::download(new class($barangs) implements FromCollection, WithHeadings {
-            public function __construct(private $data) {}
+        $filename = 'Laporan-Inventory-' . date('Ymd') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+        
+        $callback = function() use ($barangs) {
+            $file = fopen('php://output', 'w');
             
-            public function collection()
-            {
-                return $this->data->map(fn($b) => [
-                    'SKU' => $b->SKU,
-                    'Nama' => $b->Nama,
-                    'Kategori' => $b->Kategori,
-                    'Stok Real' => $b->stok_real,
-                    'Min Stok' => $b->Min_Stok,
-                    'Satuan' => $b->satuan,
-                    'Harga' => $b->harga,
-                    'Nilai' => $b->getNilaiPersediaan(),
-                    'Status' => $b->getStockStatus(),
-                    'Rack' => $b->rackLocation?->Kode_Rak ?? '-',
+            // Header
+            fputcsv($file, ['SKU', 'Nama', 'Kategori', 'Stok Real', 'Min Stok', 'Harga Beli', 'Harga Jual', 'Nilai Persediaan', 'Rack']);
+            
+            // Data
+            foreach ($barangs as $b) {
+                fputcsv($file, [
+                    $b->SKU,
+                    $b->Nama,
+                    $b->Kategori,
+                    $b->stok_real,
+                    $b->Min_Stok,
+                    $b->Harga_Beli,
+                    $b->Harga_Jual,
+                    $b->stok_real * $b->Harga_Beli,
+                    $b->rackLocation?->Kode_Rak ?? '-',
                 ]);
             }
             
-            public function headings(): array
-            {
-                return ['SKU', 'Nama', 'Kategori', 'Stok Real', 'Min Stok', 'Satuan', 'Harga', 'Nilai', 'Status', 'Rack'];
-            }
-        }, 'Laporan-Inventory-' . date('Ymd') . '.xlsx');
+            fclose($file);
+        };
+        
+        return Response::stream($callback, 200, $headers);
     }
 
     public function exportInbound(Request $request)
@@ -60,34 +66,39 @@ class LaporanController extends Controller
         
         $inbounds = $query->get();
         
-        return Excel::download(new class($inbounds) implements FromCollection, WithHeadings {
-            public function __construct(private $data) {}
+        $filename = 'Laporan-Inbound-' . date('Ymd') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+        
+        $callback = function() use ($inbounds) {
+            $file = fopen('php://output', 'w');
             
-            public function collection()
-            {
-                $rows = collect();
-                foreach ($this->data as $inbound) {
-                    foreach ($inbound->inboundDetails as $detail) {
-                        $rows->push([
-                            'No Receiving' => $inbound->No_Receiving,
-                            'Tanggal' => $inbound->Tanggal->format('Y-m-d'),
-                            'Supplier' => $inbound->supplier->Nama,
-                            'SKU' => $detail->SKU,
-                            'Nama Barang' => $detail->masterBarang->Nama,
-                            'Qty' => $detail->Qty,
-                            'Batch' => $detail->Batch,
-                            'Expired Date' => $detail->expired_date?->format('Y-m-d') ?? '-',
-                        ]);
-                    }
+            // Header
+            fputcsv($file, ['No Receiving', 'Tanggal', 'Supplier', 'SKU', 'Nama Barang', 'Qty', 'Batch', 'Expired Date']);
+            
+            // Data
+            foreach ($inbounds as $inbound) {
+                foreach ($inbound->inboundDetails as $detail) {
+                    fputcsv($file, [
+                        $inbound->No_Receiving,
+                        $inbound->Tanggal->format('Y-m-d'),
+                        $inbound->supplier->Nama,
+                        $detail->SKU,
+                        $detail->masterBarang->Nama,
+                        $detail->Qty,
+                        $detail->Batch,
+                        $detail->expired_date?->format('Y-m-d') ?? '-',
+                    ]);
                 }
-                return $rows;
             }
             
-            public function headings(): array
-            {
-                return ['No Receiving', 'Tanggal', 'Supplier', 'SKU', 'Nama Barang', 'Qty', 'Batch', 'Expired Date'];
-            }
-        }, 'Laporan-Inbound-' . date('Ymd') . '.xlsx');
+            fclose($file);
+        };
+        
+        return Response::stream($callback, 200, $headers);
     }
 
     public function exportOutbound(Request $request)
@@ -103,31 +114,36 @@ class LaporanController extends Controller
         
         $outbounds = $query->get();
         
-        return Excel::download(new class($outbounds) implements FromCollection, WithHeadings {
-            public function __construct(private $data) {}
+        $filename = 'Laporan-Outbound-' . date('Ymd') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+        
+        $callback = function() use ($outbounds) {
+            $file = fopen('php://output', 'w');
             
-            public function collection()
-            {
-                $rows = collect();
-                foreach ($this->data as $outbound) {
-                    foreach ($outbound->outboundDetails as $detail) {
-                        $rows->push([
-                            'No Shipping' => $outbound->No_Shipping,
-                            'Tanggal' => $outbound->Tanggal->format('Y-m-d'),
-                            'Customer' => $outbound->customer->Nama,
-                            'SKU' => $detail->SKU,
-                            'Nama Barang' => $detail->masterBarang->Nama,
-                            'Qty' => $detail->Qty,
-                        ]);
-                    }
+            // Header
+            fputcsv($file, ['No Shipping', 'Tanggal', 'Customer', 'SKU', 'Nama Barang', 'Qty']);
+            
+            // Data
+            foreach ($outbounds as $outbound) {
+                foreach ($outbound->outboundDetails as $detail) {
+                    fputcsv($file, [
+                        $outbound->No_Shipping,
+                        $outbound->Tanggal->format('Y-m-d'),
+                        $outbound->customer->Nama,
+                        $detail->SKU,
+                        $detail->masterBarang->Nama,
+                        $detail->Qty,
+                    ]);
                 }
-                return $rows;
             }
             
-            public function headings(): array
-            {
-                return ['No Shipping', 'Tanggal', 'Customer', 'SKU', 'Nama Barang', 'Qty'];
-            }
-        }, 'Laporan-Outbound-' . date('Ymd') . '.xlsx');
+            fclose($file);
+        };
+        
+        return Response::stream($callback, 200, $headers);
     }
 }

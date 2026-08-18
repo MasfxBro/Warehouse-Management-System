@@ -14,9 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @property int         $Rack_ID
  * @property string      $Kode_Rak
- * @property string      $Aisle
- * @property string      $Level
+ * @property string      $Lokasi
  * @property int         $Kapasitas
+ * @property int         $kapasitas_terisi
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -39,8 +39,7 @@ class RackLocation extends Model
      */
     protected $fillable = [
         'Kode_Rak',
-        'Aisle',
-        'Level',
+        'Lokasi',
         'Kapasitas',
         'kapasitas_terisi',
     ];

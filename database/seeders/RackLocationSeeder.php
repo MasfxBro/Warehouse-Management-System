@@ -24,8 +24,7 @@ class RackLocationSeeder extends Seeder
             foreach ($levels as $level) {
                 RackLocation::create([
                     'Kode_Rak'  => sprintf('R-%s%d-%02d', $aisle, $level, $seq),
-                    'Aisle'     => $aisle,
-                    'Level'     => (string) $level,
+                    'Lokasi'    => "Gudang Utama - Lorong {$aisle} - Level {$level}",
                     'Kapasitas' => rand(100, 300),
                 ]);
                 $seq++;

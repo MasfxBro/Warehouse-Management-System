@@ -65,7 +65,7 @@ class RackLocationController extends Controller
     {
         $rack = RackLocation::findOrFail($id);
         
-        if ($rack->masterBarangs()->exists()) {
+        if ($rack->masterBarang()->exists()) {
             return redirect()->route('master.rack.index')
                 ->with('error', 'Tidak dapat menghapus rak yang masih berisi barang.');
         }

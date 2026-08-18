@@ -29,7 +29,7 @@ class InboundController extends Controller
     {
         $suppliers = Supplier::all();
         $barangs = MasterBarang::all();
-        $racks = RackLocation::whereRaw('kapasitas_terisi < Kapasitas')->get();
+        $racks = RackLocation::whereRaw('"kapasitas_terisi" < "Kapasitas"')->get();
         
         return view('inbound.create', compact('suppliers', 'barangs', 'racks'));
     }
