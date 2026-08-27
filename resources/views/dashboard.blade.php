@@ -1,0 +1,336 @@
+@extends('layouts.app')
+
+@section('title', 'Dashboard')
+@section('page_heading', 'Dashboard Overview')
+
+@section('content')
+<div class="space-y-5">
+
+    <!-- Student Banner -->
+    @if(auth()->user()->isUser() && session()->has('student_identity'))
+        @php $student = session('student_identity'); @endphp
+        <div class="flex items-center justify-between bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-graduation-cap text-sm"></i>
+                </div>
+                <div>
+                    <p class="text-[13px] font-bold leading-tight">Sesi Praktikum Aktif</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">
+                        Operator: <strong class="text-white">{{ $student['name'] }}</strong>
+                        &nbsp;·&nbsp; Kelas: <strong class="text-white">{{ $student['class'] }}</strong>
+                        &nbsp;·&nbsp; NIS: <span class="font-mono text-slate-300">{{ $student['nis'] }}</span>
+                    </p>
+                </div>
+            </div>
+            <form action="{{ route('student-identity.reset') }}" method="POST">
+                @csrf
+                <button type="submit"
+                        class="text-[11px] bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate text-[10px]"></i>
+                    Ganti Sesi
+                </button>
+            </form>
+        </div>
+    @endif
+
+    <!-- ============================================================
+         STAT CARDS — 5 kolom
+         ============================================================ -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+
+        <!-- Total SKU -->
+        <div class="stat-card">
+            <div>
+                <p class="stat-card-label">Total SKU</p>
+                <p class="stat-card-value">{{ number_format($totalSku) }}</p>
+                <p class="stat-card-sub">Jenis barang</p>
+            </div>
+            <div class="stat-card-icon bg-slate-100 text-slate-600">
+                <i class="fa-solid fa-boxes-stacked text-base"></i>
+            </div>
+        </div>
+
+        <!-- Total Stok -->
+        <div class="stat-card">
+            <div>
+                <p class="stat-card-label">Total Stok</p>
+                <p class="stat-card-value">{{ number_format($totalStok) }}</p>
+                <p class="stat-card-sub text-[#10b981] font-medium">unit di gudang</p>
+            </div>
+            <div class="stat-card-icon bg-emerald-50 text-[#10b981]">
+                <i class="fa-solid fa-cubes text-base"></i>
+            </div>
+        </div>
+
+        <!-- Nilai Gudang -->
+        <div class="stat-card">
+            <div>
+                <p class="stat-card-label">Nilai Gudang</p>
+                <p class="text-lg font-bold text-slate-900 mt-1 font-mono leading-none">
+                    Rp {{ number_format($nilaiGudang / 1000000, 1) }}Jt
+                </p>
+                <p class="stat-card-sub">Total aset ({{ 'Rp ' . number_format($nilaiGudang, 0, ',', '.') }})</p>
+            </div>
+            <div class="stat-card-icon bg-indigo-50 text-indigo-600">
+                <i class="fa-solid fa-sack-dollar text-base"></i>
+            </div>
+        </div>
+
+        <!-- Inbound Hari Ini -->
+        <div class="stat-card">
+            <div>
+                <p class="stat-card-label">Inbound Hari Ini</p>
+                <p class="stat-card-value text-[#10b981]">{{ number_format($inboundTodayCount) }}</p>
+                <p class="stat-card-sub">Transaksi masuk</p>
+            </div>
+            <div class="stat-card-icon bg-emerald-50 text-[#10b981]">
+                <i class="fa-solid fa-arrow-down-to-bracket text-base"></i>
+            </div>
+        </div>
+
+        <!-- Outbound Hari Ini -->
+        <div class="stat-card">
+            <div>
+                <p class="stat-card-label">Outbound Hari Ini</p>
+                <p class="stat-card-value text-[#0058be]">{{ number_format($outboundTodayCount) }}</p>
+                <p class="stat-card-sub">Transaksi keluar</p>
+            </div>
+            <div class="stat-card-icon bg-blue-50 text-[#0058be]">
+                <i class="fa-solid fa-arrow-up-from-bracket text-base"></i>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================
+         ROW: CHART + RECENT ACTIVITY
+         ============================================================ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        <!-- Chart — 2/3 width -->
+        <div class="lg:col-span-2 wms-card">
+            <div class="wms-card-header">
+                <div>
+                    <h3 class="wms-card-title">Warehouse Activity</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Perbandingan barang masuk & keluar</p>
+                </div>
+                <div class="inline-flex rounded-lg border border-[#e2e8f0] bg-[#f7f9fb] p-0.5 gap-0.5">
+                    @foreach([
+                        'seminggu_ini' => 'Minggu Ini',
+                        'seminggu'     => '7 Hari',
+                        'sebulan'      => '30 Hari',
+                        'setahun'      => 'Setahun',
+                    ] as $key => $label)
+                        <a href="{{ route('dashboard', ['period' => $key]) }}"
+                           class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors
+                                  {{ $period === $key ? 'bg-white text-[#0058be] font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800' }}">
+                            {{ $label }}
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+            <div class="p-5">
+                <div class="h-60">
+                    <canvas id="inboundOutboundChart"></canvas>
+                </div>
+                <!-- Legend -->
+                <div class="flex items-center gap-5 mt-3">
+                    <div class="flex items-center gap-1.5 text-[11px] text-slate-500">
+                        <span class="w-3 h-3 rounded-sm bg-[#10b981] inline-block"></span>
+                        Inbound (Masuk)
+                    </div>
+                    <div class="flex items-center gap-1.5 text-[11px] text-slate-500">
+                        <span class="w-3 h-3 rounded-sm bg-[#0058be] inline-block"></span>
+                        Outbound (Keluar)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Picking Queue — 1/3 width -->
+        <div class="wms-card flex flex-col">
+            <div class="wms-card-header">
+                <div class="flex items-center gap-2">
+                    <h3 class="wms-card-title">Antrian Picking</h3>
+                    @php $pendingCount = \App\Models\OutboundTransaction::where('picking_status','not_complete')->count(); @endphp
+                    @if($pendingCount > 0)
+                        <span class="badge badge-warning">{{ $pendingCount }} pending</span>
+                    @else
+                        <span class="badge badge-success">Kosong</span>
+                    @endif
+                </div>
+                <a href="{{ route('outbound.index') }}" class="text-[11px] text-[#0058be] hover:underline">
+                    Lihat semua
+                </a>
+            </div>
+            <div class="flex-1 overflow-y-auto divide-y divide-[#f2f4f6]">
+                @php
+                    $pendingOutbounds = \App\Models\OutboundTransaction::with('customer')
+                        ->where('picking_status','not_complete')
+                        ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END")
+                        ->limit(6)->get();
+                @endphp
+                @forelse($pendingOutbounds as $trx)
+                    <a href="{{ route('outbound.picking-list', $trx->Outbound_ID) }}"
+                       class="flex items-start gap-3 px-4 py-3 hover:bg-[#f7f9fb] transition-colors group">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5
+                            {{ $trx->priority === 'high' ? 'bg-[#ffdad6] text-[#93000a]' : ($trx->priority === 'normal' ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-[#d1fae5] text-[#065f46]') }}">
+                            <i class="fa-solid fa-clipboard-list text-[11px]"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[12px] font-semibold text-slate-800 font-mono truncate">{{ $trx->No_Shipping }}</p>
+                            <p class="text-[11px] text-slate-500 truncate">{{ $trx->customer->Nama ?? '-' }}</p>
+                        </div>
+                        <span class="badge badge-{{ $trx->priority }} flex-shrink-0 mt-0.5">{{ $trx->priorityLabel() }}</span>
+                    </a>
+                @empty
+                    <div class="px-4 py-8 text-center text-[11px] text-slate-400">
+                        <i class="fa-solid fa-circle-check text-2xl text-emerald-400 mb-2 block"></i>
+                        Semua picking selesai
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         CRITICAL STOCK ALERTS
+         ============================================================ -->
+    <div class="wms-card overflow-hidden">
+        <div class="wms-card-header">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-[#ffdad6] flex items-center justify-center">
+                    <i class="fa-solid fa-triangle-exclamation text-[#93000a] text-[11px]"></i>
+                </div>
+                <h3 class="wms-card-title">Critical Stock Alerts</h3>
+                <span class="badge badge-danger font-mono">{{ $lowStockCount }} item</span>
+            </div>
+            <a href="{{ route('inventory.kartu-stok.index') }}"
+               class="text-[11px] text-[#0058be] hover:underline flex items-center gap-1">
+                View All Inventory
+                <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </a>
+        </div>
+
+        <div class="overflow-x-auto">
+            @if($lowStockItems->count() > 0)
+                <table class="wms-table">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Nama Barang</th>
+                            <th>Kategori</th>
+                            <th class="text-right">Stok Saat Ini</th>
+                            <th class="text-right">Min. Stok</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($lowStockItems as $item)
+                            @php $stok = $item->stok; @endphp
+                            <tr>
+                                <td class="font-mono font-semibold text-[#0058be]">
+                                    {{ $item->SKU }}
+                                </td>
+                                <td class="font-medium text-slate-800">{{ $item->Nama }}</td>
+                                <td><span class="badge badge-neutral">{{ $item->Kategori }}</span></td>
+                                <td class="text-right font-mono font-bold text-[#93000a]">{{ number_format($stok) }}</td>
+                                <td class="text-right font-mono text-slate-500">{{ number_format($item->Min_Stok) }}</td>
+                                <td>
+                                    @if($stok == 0)
+                                        <span class="badge badge-danger">
+                                            <i class="fa-solid fa-circle-xmark text-[9px]"></i>
+                                            Habis
+                                        </span>
+                                    @else
+                                        <span class="badge badge-warning">
+                                            <i class="fa-solid fa-arrow-down text-[9px]"></i>
+                                            Reorder
+                                        </span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <a href="{{ route('inbound.create') }}"
+                                       class="text-[11px] text-[#0058be] hover:underline font-medium">
+                                        + Inbound
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @else
+                <div class="py-10 text-center text-[11px] text-slate-400 space-y-2">
+                    <i class="fa-solid fa-shield-halved text-3xl text-emerald-400 block"></i>
+                    <p class="font-medium">Semua stok dalam kondisi aman di atas batas minimum.</p>
+                </div>
+            @endif
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const ctx  = document.getElementById('inboundOutboundChart')?.getContext('2d');
+    if (!ctx) return;
+    const data = @json($chartData);
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: 'Inbound',
+                    data: data.inbound,
+                    backgroundColor: '#10b981',
+                    borderRadius: 4,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.7,
+                },
+                {
+                    label: 'Outbound',
+                    data: data.outbound,
+                    backgroundColor: '#0058be',
+                    borderRadius: 4,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.7,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: '#191c1e',
+                    titleFont: { family: 'Inter', size: 11, weight: '600' },
+                    bodyFont:  { family: 'JetBrains Mono', size: 11 },
+                    padding: 10,
+                    cornerRadius: 6,
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: { font: { family: 'Inter', size: 11 }, color: '#76777d' }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#eceef0', drawBorder: false },
+                    border: { display: false, dash: [4, 4] },
+                    ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#76777d' }
+                }
+            }
+        }
+    });
+});
+</script>
+@endsection

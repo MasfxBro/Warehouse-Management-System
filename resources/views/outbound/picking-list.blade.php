@@ -1,257 +1,132 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Picking List - {{ $outbound->No_Shipping }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 3px solid #4CAF50;
-        }
-        .header h1 {
-            color: #4CAF50;
-            margin: 0 0 10px 0;
-        }
-        .header p {
-            color: #666;
-            margin: 5px 0;
-        }
-        .success-message {
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-        }
-        .info-section {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        .info-section h3 {
-            margin-top: 0;
-            color: #333;
-            font-size: 16px;
-        }
-        .info-row {
-            display: flex;
-            margin-bottom: 8px;
-        }
-        .info-label {
-            font-weight: bold;
-            width: 180px;
-            color: #555;
-        }
-        .info-value {
-            color: #333;
-        }
-        .picking-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        .picking-table th {
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: bold;
-        }
-        .picking-table td {
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
-        }
-        .picking-table tr:hover {
-            background-color: #f5f5f5;
-        }
-        .picking-table tr:last-child td {
-            border-bottom: 2px solid #4CAF50;
-        }
-        .qty-highlight {
-            background-color: #fff3cd;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            color: #856404;
-        }
-        .total-row {
-            background-color: #f0f0f0;
-            font-weight: bold;
-        }
-        .buttons {
-            margin-top: 30px;
-            text-align: center;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 24px;
-            margin: 0 10px;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            font-size: 14px;
-        }
-        .button-primary {
-            background-color: #4CAF50;
-            color: white;
-        }
-        .button-primary:hover {
-            background-color: #45a049;
-        }
-        .button-secondary {
-            background-color: #6c757d;
-            color: white;
-        }
-        .button-secondary:hover {
-            background-color: #5a6268;
-        }
-        .note {
-            background-color: #fff3cd;
-            border: 1px solid #ffc107;
-            padding: 15px;
-            border-radius: 4px;
-            margin-top: 20px;
-        }
-        .note strong {
-            color: #856404;
-        }
-        @media print {
-            .buttons {
-                display: none;
-            }
-            body {
-                background-color: white;
-            }
-            .container {
-                box-shadow: none;
-            }
-        }
-    </style>
-</head>
-<body>
+@extends('layouts.app')
 
-<div class="container">
-    
-    <div class="header">
-        <h1>📋 PICKING LIST</h1>
-        <p>Daftar Pengambilan Barang (FIFO)</p>
+@section('title', 'Picking List — ' . $outbound->No_Shipping)
+@section('page_heading', 'Picking List — ' . $outbound->No_Shipping)
+
+@section('content')
+<div class="space-y-5">
+
+    <a href="{{ route('outbound.show', $outbound->Outbound_ID) }}" class="btn btn-ghost btn-sm gap-1.5">
+        <i class="fa-solid fa-arrow-left"></i> Kembali ke Detail Outbound
+    </a>
+
+    {{-- Status Bar --}}
+    <div class="wms-card p-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    @if($outbound->isComplete())
+                        <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Picking Selesai</span>
+                    @else
+                        <span class="badge badge-warning"><i class="fa-solid fa-hourglass-half"></i> Belum Selesai</span>
+                    @endif
+                    <span class="badge badge-{{ $outbound->priority }}">{{ $outbound->priorityLabel() }}</span>
+                </div>
+                <h2 class="text-lg font-black font-mono text-[#0058be]">{{ $outbound->No_Shipping }}</h2>
+                <p class="text-xs text-slate-500">
+                    Customer: <strong class="text-slate-800">{{ $outbound->customer->Nama ?? '-' }}</strong>
+                    &nbsp;·&nbsp; Penerima: <strong class="text-slate-800">{{ $outbound->Nama_Penerima ?? '-' }}</strong>
+                    &nbsp;·&nbsp; <i class="fa-regular fa-calendar mr-1"></i>{{ $outbound->Tanggal->format('d/m/Y') }}
+                </p>
+            </div>
+
+            @if(!$outbound->isComplete())
+                <form action="{{ route('outbound.picking-complete', $outbound->Outbound_ID) }}" method="POST"
+                      onsubmit="return confirm('Tandai picking list ini SELESAI? Stok barang akan dikurangi.')">
+                    @csrf
+                    <button type="submit" class="btn btn-success btn-lg gap-2 cursor-pointer">
+                        <i class="fa-solid fa-circle-check"></i> Mark as Complete
+                    </button>
+                </form>
+            @else
+                <a href="{{ route('outbound.surat-jalan', $outbound->Outbound_ID) }}"
+                   class="btn btn-primary btn-lg gap-2">
+                    <i class="fa-solid fa-file-pdf"></i> Download Surat Jalan PDF
+                </a>
+            @endif
+        </div>
     </div>
 
-    @if(session('success'))
-        <div class="success-message">
-            <strong>✓ Berhasil!</strong> {{ session('success') }}
+    {{-- Instruksi --}}
+    @if(!$outbound->isComplete())
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs flex items-start gap-3">
+            <i class="fa-solid fa-triangle-exclamation text-amber-500 text-base flex-shrink-0 mt-0.5"></i>
+            <div>
+                <strong class="font-bold text-slate-900">Petunjuk Pengambilan Barang</strong>
+                <p class="text-slate-600 mt-0.5">
+                    Ambil barang dari rak sesuai daftar. Centang setiap baris setelah diambil.
+                    Klik <strong>Mark as Complete</strong> setelah semua barang terkumpul untuk mengaktifkan Surat Jalan PDF.
+                </p>
+            </div>
         </div>
     @endif
 
-    <div class="info-section">
-        <h3>Informasi Pengiriman</h3>
-        <div class="info-row">
-            <div class="info-label">No. Shipping:</div>
-            <div class="info-value">{{ $outbound->No_Shipping }}</div>
+    {{-- Tabel Picking --}}
+    <div class="wms-card overflow-hidden">
+        <div class="wms-card-header">
+            <h3 class="wms-card-title flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-[#0058be]"></i> Daftar Barang yang Diambil
+            </h3>
+            <span class="text-xs text-slate-400">{{ $outbound->outboundDetails->count() }} baris</span>
         </div>
-        <div class="info-row">
-            <div class="info-label">Tanggal Pengiriman:</div>
-            <div class="info-value">{{ $outbound->Tanggal->format('d M Y') }}</div>
+        <div class="overflow-x-auto">
+            @if($outbound->outboundDetails->count() > 0)
+                <table class="wms-table">
+                    <thead><tr>
+                        <th>No</th><th>SKU</th><th>Nama Barang</th>
+                        <th>Lokasi Rak</th><th class="text-right">Qty Ambil</th>
+                        @if(!$outbound->isComplete())<th class="text-center w-16">Cek</th>@endif
+                    </tr></thead>
+                    <tbody>
+                        @foreach($outbound->outboundDetails as $i => $detail)
+                            <tr id="row-{{ $i }}">
+                                <td class="font-mono text-slate-400">{{ $i + 1 }}</td>
+                                <td class="font-mono font-semibold text-[#0058be]">{{ $detail->SKU }}</td>
+                                <td class="font-medium text-slate-900">{{ $detail->masterBarang->Nama ?? '-' }}</td>
+                                <td>
+                                    <span class="font-mono font-bold text-slate-800 bg-[#f2f4f6] border border-[#e2e8f0] px-2.5 py-1 rounded text-xs">
+                                        {{ $detail->rackLocation->Kode_Rak ?? '-' }}
+                                    </span>
+                                </td>
+                                <td class="text-right">
+                                    <span class="font-mono font-bold {{ $outbound->isComplete() ? 'text-[#10b981]' : 'text-amber-700' }}">
+                                        {{ number_format($detail->Qty) }} unit
+                                    </span>
+                                </td>
+                                @if(!$outbound->isComplete())
+                                    <td class="text-center">
+                                        <input type="checkbox" id="check-{{ $i }}" onchange="markRow({{ $i }})"
+                                               class="w-4 h-4 rounded text-[#10b981] cursor-pointer">
+                                    </td>
+                                @endif
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot class="bg-[#f7f9fb] border-t border-[#e2e8f0]">
+                        <tr>
+                            <td colspan="{{ $outbound->isComplete() ? 4 : 5 }}"
+                                class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                Total Qty
+                            </td>
+                            <td class="px-4 py-3 text-right font-mono font-black">
+                                {{ number_format($outbound->outboundDetails->sum('Qty')) }} unit
+                            </td>
+                            @if(!$outbound->isComplete())<td></td>@endif
+                        </tr>
+                    </tfoot>
+                </table>
+            @endif
         </div>
-        <div class="info-row">
-            <div class="info-label">Customer:</div>
-            <div class="info-value">{{ $outbound->customer->Nama }}</div>
-        </div>
-        @if($outbound->No_Surat_Jalan)
-        <div class="info-row">
-            <div class="info-label">No. Surat Jalan:</div>
-            <div class="info-value">{{ $outbound->No_Surat_Jalan }}</div>
-        </div>
-        @endif
-    </div>
-
-    <h3>📦 Daftar Barang yang Harus Diambil</h3>
-
-    @if(count($pickingList) > 0)
-        <table class="picking-table">
-            <thead>
-                <tr>
-                    <th>No</th>
-                    <th>SKU</th>
-                    <th>Nama Barang</th>
-                    <th>Rak</th>
-                    <th>Batch</th>
-                    <th>Qty Pick</th>
-                    <th>Tanggal Inbound</th>
-                    <th>No. Receiving</th>
-                </tr>
-            </thead>
-            <tbody>
-                @php
-                    $totalQty = 0;
-                @endphp
-                @foreach($pickingList as $index => $item)
-                    <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td><strong>{{ $item['sku'] }}</strong></td>
-                        <td>{{ $item['nama_barang'] }}</td>
-                        <td><strong>{{ $item['kode_rak'] }}</strong></td>
-                        <td>{{ $item['batch'] }}</td>
-                        <td><span class="qty-highlight">{{ $item['qty_pick'] }} unit</span></td>
-                        <td>{{ $item['tanggal_inbound'] }}</td>
-                        <td>{{ $item['no_receiving'] }}</td>
-                    </tr>
-                    @php
-                        $totalQty += $item['qty_pick'];
-                    @endphp
-                @endforeach
-                <tr class="total-row">
-                    <td colspan="5" style="text-align: right;">TOTAL:</td>
-                    <td><span class="qty-highlight">{{ $totalQty }} unit</span></td>
-                    <td colspan="2"></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="note">
-            <strong>📌 Catatan FIFO:</strong><br>
-            Barang diambil berdasarkan urutan tanggal penerimaan (First In First Out).<br>
-            Ambil barang dari rak yang tercantum sesuai urutan di atas.
-        </div>
-    @else
-        <p style="text-align: center; color: #999; padding: 20px;">
-            Tidak ada picking list yang tersedia.
-        </p>
-    @endif
-
-    <div class="buttons">
-        <a href="{{ route('outbound.surat-jalan', $outbound->Outbound_ID) }}" class="button button-primary" style="background-color: #007bff;">
-            📄 Download Surat Jalan PDF
-        </a>
-        <button onclick="window.print()" class="button button-primary">
-            🖨️ Cetak Picking List
-        </button>
-        <a href="{{ route('outbound.index') }}" class="button button-secondary">
-            ← Kembali ke Daftar Outbound
-        </a>
     </div>
 
 </div>
 
-</body>
-</html>
+<script>
+function markRow(idx){
+    const row=document.getElementById(`row-${idx}`);
+    const cb=document.getElementById(`check-${idx}`);
+    row.classList.toggle('opacity-40',cb.checked);
+    row.classList.toggle('line-through',cb.checked);
+}
+</script>
+@endsection

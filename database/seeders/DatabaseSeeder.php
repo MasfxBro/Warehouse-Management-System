@@ -42,9 +42,8 @@ class DatabaseSeeder extends Seeder
         $this->command->info('========================================');
         $this->command->info('');
         $this->command->info(' Akun default:');
-        $this->command->info('   Admin    : admin@wms.local / password');
-        $this->command->info('   Manager  : budi.manager@wms.local / password');
-        $this->command->info('   Operator : agus.op@wms.local / password');
+        $this->command->info('   Guru (Admin) : admin@wms.local (atau username "admin") / password');
+        $this->command->info('   Siswa (User) : siswa@wms.local (atau username "siswa") / password');
         $this->command->info('');
     }
 }

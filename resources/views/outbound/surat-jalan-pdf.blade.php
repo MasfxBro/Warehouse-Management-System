@@ -2,256 +2,287 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Surat Jalan - {{ $outbound->No_Surat_Jalan ?? $outbound->No_Shipping }}</title>
+    <title>Surat Jalan — {{ $outbound->No_Shipping }}</title>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif;
-            font-size: 12px;
-            color: #333;
-            line-height: 1.4;
-            margin: 0;
-            padding: 0;
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 11px;
+            color: #1a202c;
+            line-height: 1.5;
+            padding: 30px 35px;
         }
-        .header-table {
+        /* ---- Header ---- */
+        .header-wrap {
+            display: table;
             width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
-        .header-table td {
-            vertical-align: top;
+        .header-left, .header-right {
+            display: table-cell;
+            vertical-align: middle;
         }
-        .company-title {
-            font-size: 20px;
+        .header-right { text-align: right; }
+        .company-name {
+            font-size: 18px;
             font-weight: bold;
-            color: #1a5f7a;
-            margin: 0 0 5px 0;
-            text-transform: uppercase;
+            color: #0058BE;
+            letter-spacing: 0.5px;
         }
-        .company-subtitle {
-            font-size: 10px;
-            color: #666;
-            margin: 0;
+        .company-sub {
+            font-size: 9px;
+            color: #718096;
+            margin-top: 2px;
         }
         .doc-title {
-            text-align: right;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: bold;
-            color: #333;
-            margin: 0 0 5px 0;
-            text-transform: uppercase;
+            color: #1a202c;
+            letter-spacing: 1px;
+        }
+        .doc-no {
+            font-size: 10px;
+            color: #4a5568;
+            margin-top: 3px;
         }
         .divider {
-            border-bottom: 2px solid #1a5f7a;
-            margin-bottom: 20px;
+            border: none;
+            border-top: 2.5px solid #0058BE;
+            margin-bottom: 16px;
         }
-        .info-table {
+        /* ---- Info Boxes ---- */
+        .info-wrap {
+            display: table;
             width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
-        .info-table td {
+        .info-cell {
+            display: table-cell;
             width: 50%;
             vertical-align: top;
-            padding: 0 10px 0 0;
+            padding-right: 10px;
         }
+        .info-cell:last-child { padding-right: 0; padding-left: 10px; }
         .box {
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 10px;
-            background-color: #fcfcfc;
-            min-height: 90px;
+            border: 1px solid #cbd5e0;
+            border-radius: 5px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            min-height: 80px;
         }
         .box-title {
+            font-size: 8px;
             font-weight: bold;
-            font-size: 11px;
-            color: #1a5f7a;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-            margin-bottom: 8px;
+            color: #0058BE;
             text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+            margin-bottom: 7px;
         }
-        .field-label {
+        .info-row { margin-bottom: 4px; }
+        .info-label {
             font-weight: bold;
-            width: 110px;
+            color: #4a5568;
             display: inline-block;
-            color: #555;
+            width: 115px;
+            font-size: 10px;
         }
+        .info-value { color: #1a202c; font-size: 10px; }
+        /* ---- Items Table ---- */
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin-bottom: 24px;
         }
         .items-table th {
-            background-color: #1a5f7a;
+            background-color: #0058BE;
             color: #ffffff;
-            padding: 8px 10px;
+            padding: 7px 10px;
             text-align: left;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             text-transform: uppercase;
+            letter-spacing: 0.4px;
         }
         .items-table td {
-            padding: 8px 10px;
-            border-bottom: 1px solid #e0e0e0;
+            padding: 7px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 10px;
+            color: #2d3748;
+        }
+        .items-table tr:nth-child(even) td { background-color: #f7f9fb; }
+        .items-table .total-row td {
+            background: #ebf4ff;
+            font-weight: bold;
+            border-top: 2px solid #0058BE;
             font-size: 11px;
         }
-        .items-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .text-center {
-            text-align: center;
-        }
-        .text-right {
-            text-align: right;
-        }
-        .signature-table {
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .mono { font-family: 'DejaVu Sans Mono', monospace; }
+        /* ---- Signature ---- */
+        .sign-wrap {
+            display: table;
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 30px;
+            margin-top: 28px;
             page-break-inside: avoid;
         }
-        .signature-table td {
+        .sign-cell {
+            display: table-cell;
             width: 33.33%;
             text-align: center;
             vertical-align: top;
-            padding: 10px;
+            padding: 0 8px;
         }
-        .signature-box {
-            height: 70px;
-        }
-        .signature-name {
+        .sign-cell:first-child { padding-left: 0; }
+        .sign-cell:last-child  { padding-right: 0; }
+        .sign-role {
+            font-size: 10px;
             font-weight: bold;
-            border-top: 1px dashed #666;
-            padding-top: 5px;
-            display: inline-block;
-            width: 80%;
+            color: #4a5568;
+            margin-bottom: 3px;
         }
-        .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            text-align: center;
+        .sign-note {
             font-size: 9px;
-            color: #888;
-            border-top: 1px solid #eee;
+            color: #a0aec0;
+            margin-bottom: 50px;
+        }
+        .sign-line {
+            border-top: 1px dashed #718096;
             padding-top: 5px;
+            font-size: 10px;
+            color: #2d3748;
+        }
+        /* ---- Footer ---- */
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 8px;
+            color: #a0aec0;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 8px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Header Section -->
-    <table class="header-table">
-        <tr>
-            <td style="width: 50%;">
-                <div class="company-title">WAREHOUSE SYSTEM</div>
-                <div class="company-subtitle">Outbound &amp; Logistics Management System</div>
-                <div class="company-subtitle">Jl. Logistik Utama No. 88, Jakarta</div>
-            </td>
-            <td style="width: 50%;">
-                <div class="doc-title">SURAT JALAN</div>
-                <div style="text-align: right; font-size: 11px; color: #555;">
-                    No. Surat Jalan: <strong>{{ $outbound->No_Surat_Jalan ?? '-' }}</strong><br>
-                    No. Shipping: <strong>{{ $outbound->No_Shipping }}</strong>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <!-- HEADER -->
+    <div class="header-wrap">
+        <div class="header-left">
+            <div class="company-name">WMS PROTOTIPE 2</div>
+            <div class="company-sub">Warehouse Management System — Logistik & Pergudangan</div>
+            <div class="company-sub">Jl. Pendidikan Logistik No. 1 | Telp. (021) 000-0000</div>
+        </div>
+        <div class="header-right">
+            <div class="doc-title">SURAT JALAN</div>
+            <div class="doc-no">No. SJ: <strong class="mono">{{ $outbound->No_Shipping }}</strong></div>
+            <div class="doc-no">Tanggal Cetak: {{ now()->format('d/m/Y H:i') }} WIB</div>
+        </div>
+    </div>
+    <hr class="divider">
 
-    <div class="divider"></div>
-
-    <!-- Info Section -->
-    <table class="info-table">
-        <tr>
-            <td>
-                <div class="box">
-                    <div class="box-title">INFORMASI PENGIRIMAN</div>
-                    <div><span class="field-label">Tanggal:</span> {{ $outbound->Tanggal->format('d/m/Y') }}</div>
-                    <div><span class="field-label">No. Shipping:</span> {{ $outbound->No_Shipping }}</div>
-                    <div><span class="field-label">No. Surat Jalan:</span> {{ $outbound->No_Surat_Jalan ?? '-' }}</div>
+    <!-- INFO BOXES -->
+    <div class="info-wrap">
+        <!-- Informasi Pengiriman -->
+        <div class="info-cell">
+            <div class="box">
+                <div class="box-title">Informasi Pengiriman</div>
+                <div class="info-row">
+                    <span class="info-label">No. Surat Jalan</span>
+                    <span class="info-value mono"><strong>{{ $outbound->No_Shipping }}</strong></span>
                 </div>
-            </td>
-            <td style="padding-right: 0;">
-                <div class="box">
-                    <div class="box-title">TUJUAN PENGIRIMAN (CUSTOMER)</div>
-                    <div><span class="field-label">Nama Customer:</span> <strong>{{ $outbound->customer->Nama }}</strong></div>
-                    <div><span class="field-label">Alamat:</span> {{ $outbound->customer->Alamat ?? 'Alamat tidak dicantumkan' }}</div>
+                <div class="info-row">
+                    <span class="info-label">Tanggal Kirim</span>
+                    <span class="info-value">{{ $outbound->Tanggal->format('d F Y') }}</span>
                 </div>
-            </td>
-        </tr>
-    </table>
+                <div class="info-row">
+                    <span class="info-label">Nama Penerima</span>
+                    <span class="info-value"><strong>{{ $outbound->Nama_Penerima ?? '-' }}</strong></span>
+                </div>
+                @if($outbound->Catatan)
+                <div class="info-row">
+                    <span class="info-label">Catatan</span>
+                    <span class="info-value">{{ $outbound->Catatan }}</span>
+                </div>
+                @endif
+            </div>
+        </div>
+        <!-- Detail Customer -->
+        <div class="info-cell">
+            <div class="box">
+                <div class="box-title">Tujuan Pengiriman (Customer)</div>
+                <div class="info-row">
+                    <span class="info-label">Nama Customer</span>
+                    <span class="info-value"><strong>{{ $outbound->customer->Nama ?? '-' }}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Alamat</span>
+                    <span class="info-value">{{ $outbound->customer->Alamat ?? '-' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">No. Kontak</span>
+                    <span class="info-value mono">{{ $outbound->customer->No_Kontak ?? ($outbound->customer->Kontak ?? '-') }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <!-- Items Table -->
+    <!-- TABEL BARANG -->
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width: 5%;" class="text-center">NO</th>
-                <th style="width: 20%;">SKU</th>
-                <th style="width: 35%;">NAMA BARANG</th>
-                <th style="width: 15%;">RAK / LOKASI</th>
-                <th style="width: 15%;">BATCH</th>
-                <th style="width: 10%;" class="text-right">QTY</th>
+                <th class="text-center" style="width:5%">No</th>
+                <th style="width:18%" class="mono">SKU</th>
+                <th style="width:40%">Nama Barang</th>
+                <th style="width:17%">Satuan</th>
+                <th class="text-right" style="width:10%">Qty</th>
             </tr>
         </thead>
         <tbody>
-            @php $totalQty = 0; $no = 1; @endphp
-            @if(isset($pickingList) && count($pickingList) > 0)
-                @foreach($pickingList as $item)
-                    <tr>
-                        <td class="text-center">{{ $no++ }}</td>
-                        <td><strong>{{ $item['sku'] }}</strong></td>
-                        <td>{{ $item['nama_barang'] }}</td>
-                        <td>{{ $item['kode_rak'] }}</td>
-                        <td>{{ $item['batch'] }}</td>
-                        <td class="text-right"><strong>{{ $item['qty_pick'] }}</strong></td>
-                    </tr>
-                    @php $totalQty += $item['qty_pick']; @endphp
-                @endforeach
-            @else
-                @foreach($outbound->outboundDetails as $detail)
-                    <tr>
-                        <td class="text-center">{{ $no++ }}</td>
-                        <td><strong>{{ $detail->SKU }}</strong></td>
-                        <td>{{ $detail->masterBarang->Nama }}</td>
-                        <td>{{ $detail->rackLocation->Kode_Rak }}</td>
-                        <td>-</td>
-                        <td class="text-right"><strong>{{ $detail->Qty }}</strong></td>
-                    </tr>
-                    @php $totalQty += $detail->Qty; @endphp
-                @endforeach
-            @endif
-            <tr style="background-color: #f0f4f8; font-weight: bold;">
-                <td colspan="5" class="text-right">TOTAL QTY KELUAR:</td>
-                <td class="text-right" style="color: #1a5f7a; font-size: 12px;">{{ $totalQty }} UNIT</td>
-            </tr>
+            @php $totalQty = 0; @endphp
+            @foreach($outbound->outboundDetails as $i => $detail)
+                <tr>
+                    <td class="text-center">{{ $i + 1 }}</td>
+                    <td class="mono"><strong>{{ $detail->SKU }}</strong></td>
+                    <td>{{ $detail->masterBarang->Nama ?? '-' }}</td>
+                    <td>{{ $detail->masterBarang->Kategori ?? '-' }}</td>
+                    <td class="text-right mono"><strong>{{ number_format($detail->Qty) }}</strong></td>
+                </tr>
+                @php $totalQty += $detail->Qty; @endphp
+            @endforeach
         </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="4" class="text-right">TOTAL QTY KELUAR:</td>
+                <td class="text-right mono">{{ number_format($totalQty) }}</td>
+            </tr>
+        </tfoot>
     </table>
 
-    <!-- Signature Table -->
-    <table class="signature-table">
-        <tr>
-            <td>
-                <div>Pengirim / Petugas Gudang</div>
-                <div class="signature-box"></div>
-                <div class="signature-name">( ___________________ )</div>
-            </td>
-            <td>
-                <div>Sopir / Kurir Pengirim</div>
-                <div class="signature-box"></div>
-                <div class="signature-name">( ___________________ )</div>
-            </td>
-            <td>
-                <div>Penerima / Customer</div>
-                <div class="signature-box"></div>
-                <div class="signature-name">( {{ $outbound->customer->Nama }} )</div>
-            </td>
-        </tr>
-    </table>
+    <!-- AREA TANDA TANGAN -->
+    <div class="sign-wrap">
+        <div class="sign-cell">
+            <div class="sign-role">Pengirim</div>
+            <div class="sign-note">Siswa / Petugas Logistik</div>
+            <div class="sign-line">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+        </div>
+        <div class="sign-cell">
+            <div class="sign-role">Penerima / Kurir</div>
+            <div class="sign-note">{{ $outbound->Nama_Penerima ?? '___________' }}</div>
+            <div class="sign-line">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+        </div>
+        <div class="sign-cell">
+            <div class="sign-role">Supervisor</div>
+            <div class="sign-note">Guru / Admin Gudang</div>
+            <div class="sign-line">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+        </div>
+    </div>
 
-    <!-- Footer -->
+    <!-- FOOTER -->
     <div class="footer">
-        Surat Jalan ini dicetak secara otomatis oleh Warehouse Management System pada {{ date('d/m/Y H:i') }} WIB.
+        Dokumen ini dicetak otomatis oleh Warehouse Management System Prototipe 2.
+        Sah tanpa tanda tangan basah jika dikeluarkan oleh sistem.
     </div>
 
 </body>

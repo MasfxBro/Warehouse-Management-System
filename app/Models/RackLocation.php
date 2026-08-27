@@ -52,6 +52,41 @@ class RackLocation extends Model
     ];
 
     // =========================================================
+    // DYNAMIC ACCESSORS
+    // =========================================================
+
+    /**
+     * Accessor untuk menghitung kapasitas terpakai rak (Inbound Qty - Outbound Qty).
+     */
+    public function getKapasitasTerpakaiAttribute(): int
+    {
+        $inbound = $this->inboundDetails()->sum('Qty');
+        $outbound = $this->outboundDetails()->sum('Qty');
+        return max(0, $inbound - $outbound);
+    }
+
+    /**
+     * Accessor status kapasitas ('Tersedia', 'Hampir Penuh', 'Penuh').
+     */
+    public function getStatusKapasitasAttribute(): string
+    {
+        $max = $this->Kapasitas;
+        $used = $this->kapasitas_terpakai;
+
+        if ($max <= 0) return 'Tersedia';
+
+        $ratio = $used / $max;
+
+        if ($ratio >= 1.0) {
+            return 'Penuh';
+        } elseif ($ratio >= 0.8) {
+            return 'Hampir Penuh';
+        }
+
+        return 'Tersedia';
+    }
+
+    // =========================================================
     // RELASI
     // =========================================================
 

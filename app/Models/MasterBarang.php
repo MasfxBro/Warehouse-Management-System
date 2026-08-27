@@ -67,6 +67,36 @@ class MasterBarang extends Model
     ];
 
     // =========================================================
+    // DYNAMIC ACCESSORS
+    // =========================================================
+
+    /**
+     * Accessor untuk stok real-time (Inbound Qty - Outbound Qty).
+     */
+    public function getStokAttribute(): int
+    {
+        $inbound = $this->inboundDetails()->sum('Qty');
+        $outbound = $this->outboundDetails()->sum('Qty');
+        return max(0, $inbound - $outbound);
+    }
+
+    /**
+     * Accessor untuk harga barang per unit (default: Rp 50.000).
+     */
+    public function getHargaAttribute(): int
+    {
+        return 50000;
+    }
+
+    /**
+     * Accessor untuk nilai total barang (Stok * Harga).
+     */
+    public function getNilaiBarangAttribute(): int
+    {
+        return $this->stok * $this->harga;
+    }
+
+    // =========================================================
     // RELASI
     // =========================================================
 

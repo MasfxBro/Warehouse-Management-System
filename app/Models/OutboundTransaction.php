@@ -11,47 +11,36 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * Model: OutboundTransaction
  *
- * Merepresentasikan header transaksi pengiriman barang ke customer.
- * Menggunakan SoftDeletes agar riwayat transaksi tidak terhapus permanen.
+ * Header transaksi pengiriman barang ke customer (SJ-YYYYMMDD-XXXX).
  *
  * @property int         $Outbound_ID
  * @property string      $No_Shipping
  * @property \Carbon\Carbon $Tanggal
  * @property int         $Customer_ID
- * @property string|null $No_Surat_Jalan
  * @property int         $User_ID
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
- * @property \Carbon\Carbon|null $deleted_at
+ * @property string      $picking_status  — 'not_complete' | 'complete'
+ * @property string      $priority        — 'high' | 'normal' | 'decent'
+ * @property string|null $Nama_Penerima
+ * @property string|null $Catatan
  */
 class OutboundTransaction extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /**
-     * Nama tabel sesuai ERD.
-     */
-    protected $table = 'outbound_transactions';
-
-    /**
-     * Primary key sesuai ERD.
-     */
+    protected $table      = 'outbound_transactions';
     protected $primaryKey = 'Outbound_ID';
 
-    /**
-     * Kolom yang boleh diisi secara mass assignment.
-     */
     protected $fillable = [
         'No_Shipping',
         'Tanggal',
         'Customer_ID',
-        'No_Surat_Jalan',
         'User_ID',
+        'picking_status',
+        'priority',
+        'Nama_Penerima',
+        'Catatan',
     ];
 
-    /**
-     * Cast tipe data kolom.
-     */
     protected $casts = [
         'Tanggal'     => 'date',
         'Customer_ID' => 'integer',
@@ -62,27 +51,45 @@ class OutboundTransaction extends Model
     // RELASI
     // =========================================================
 
-    /**
-     * Transaksi outbound ditujukan ke satu customer.
-     */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'Customer_ID', 'Customer_ID');
     }
 
-    /**
-     * Transaksi outbound diproses oleh satu user.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'User_ID', 'id');
     }
 
-    /**
-     * Satu transaksi outbound memiliki banyak detail baris barang.
-     */
     public function outboundDetails(): HasMany
     {
         return $this->hasMany(OutboundDetail::class, 'Outbound_ID', 'Outbound_ID');
+    }
+
+    // =========================================================
+    // HELPERS
+    // =========================================================
+
+    public function isComplete(): bool
+    {
+        return $this->picking_status === 'complete';
+    }
+
+    public function priorityBadgeClass(): string
+    {
+        return match ($this->priority) {
+            'high'   => 'bg-red-100 text-red-800 border border-red-300',
+            'normal' => 'bg-amber-100 text-amber-800 border border-amber-300',
+            default  => 'bg-emerald-100 text-emerald-800 border border-emerald-300',
+        };
+    }
+
+    public function priorityLabel(): string
+    {
+        return match ($this->priority) {
+            'high'   => 'High',
+            'normal' => 'Normal',
+            default  => 'Decent',
+        };
     }
 }

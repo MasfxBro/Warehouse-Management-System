@@ -3,14 +3,15 @@
 namespace App\Enums;
 
 /**
- * Enum untuk mendefinisikan peran (role) pengguna dalam sistem WMS.
- * Digunakan pada kolom `role` di tabel `users`.
+ * Enum untuk mendefinisikan peran (role) pengguna dalam sistem WMS Prototipe 2.
+ * HANYA ada 2 role:
+ * - admin (Guru)
+ * - user (Operator / Siswa)
  */
 enum UserRole: string
 {
-    case Admin    = 'admin';
-    case Manager  = 'manager';
-    case Operator = 'operator';
+    case Admin = 'admin';
+    case User  = 'user';
 
     /**
      * Mengembalikan label yang human-readable untuk setiap role.
@@ -18,18 +19,17 @@ enum UserRole: string
     public function label(): string
     {
         return match($this) {
-            UserRole::Admin    => 'Administrator',
-            UserRole::Manager  => 'Manager',
-            UserRole::Operator => 'Operator',
+            UserRole::Admin => 'Guru (Admin)',
+            UserRole::User  => 'Operator (Siswa)',
         };
     }
 
     /**
      * Mengembalikan semua nilai role sebagai array string.
-     * Berguna untuk validasi dan seeder.
      */
     public static function values(): array
     {
         return array_column(self::cases(), 'value');
     }
 }
+

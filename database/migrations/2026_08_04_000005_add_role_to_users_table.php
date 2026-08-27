@@ -20,9 +20,9 @@ return new class extends Migration
             // Kolom role menggunakan tipe string dengan nilai enum yang divalidasi di aplikasi
             // Default 'operator' — prinsip least privilege
             $table->string('role', 20)
-                  ->default(UserRole::Operator->value)
+                  ->default(UserRole::User->value)
                   ->after('password')
-                  ->comment('Peran pengguna: admin, manager, operator');
+                  ->comment('Peran pengguna: admin (Guru), user (Operator/Siswa)');
 
             // Index untuk filter berdasarkan role
             $table->index('role');

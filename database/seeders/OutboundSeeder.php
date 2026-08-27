@@ -35,18 +35,24 @@ class OutboundSeeder extends Seeder
         $transactionCount = 12;
         $detailSeq        = 1;
 
+        $namaKurir = ['Budi Santoso', 'Andi Wijaya', 'Citra Lestari', 'Dian Permana'];
+
         for ($i = 1; $i <= $transactionCount; $i++) {
-            // 80% transaksi sudah punya surat jalan
-            $hasSuratJalan = $i <= (int) ($transactionCount * 0.8);
+            // 70% transaksi sudah complete (picking selesai)
+            $isComplete = $i <= (int) ($transactionCount * 0.7);
+            $totalQty   = rand(5, 60);
+            $priority   = $totalQty > 50 ? 'high' : ($totalQty > 10 ? 'normal' : 'decent');
 
             // Buat header transaksi outbound
             $transaction = OutboundTransaction::create([
                 'No_Shipping'    => sprintf('SHP-2026-%04d', $i),
                 'Tanggal'        => now()->subDays(rand(1, 120))->format('Y-m-d'),
                 'Customer_ID'    => $customerIds[($i - 1) % count($customerIds)],
-                'No_Surat_Jalan' => $hasSuratJalan ? sprintf('SJ-2026-%04d', $i) : null,
-                // Hanya operator dan manager yang memproses outbound
-                'User_ID'        => $userIds[($i % (count($userIds) - 1)) + 1],
+                'User_ID'        => $userIds[($i % count($userIds))],
+                'picking_status' => $isComplete ? 'complete' : 'not_complete',
+                'priority'       => $priority,
+                'Nama_Penerima'  => $namaKurir[$i % count($namaKurir)],
+                'Catatan'        => $i % 3 === 0 ? 'Pengiriman reguler sesuai PO' : null,
             ]);
 
             // Setiap transaksi memiliki 1–4 detail baris barang

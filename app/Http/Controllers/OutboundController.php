@@ -2,304 +2,280 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\MasterBarang;
-use App\Models\RackLocation;
-use App\Models\OutboundTransaction;
 use App\Models\OutboundDetail;
-use App\Models\InboundDetail;
-use Illuminate\Support\Facades\DB;
+use App\Models\OutboundTransaction;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class OutboundController extends Controller
 {
-    public function index()
-    {
-        // Ambil semua transaksi outbound dengan relasi customer dan outbound details
-        // Urutkan dari yang terbaru
-        $outbounds = OutboundTransaction::with(['customer', 'outboundDetails.masterBarang'])
-            ->orderBy('Tanggal', 'desc')
-            ->orderBy('Outbound_ID', 'desc')
-            ->get();
+    // =========================================================
+    // INDEX — Daftar Outbound (2 tabel: Picking Queue & Riwayat)
+    // =========================================================
 
-        return view('outbound.index', compact('outbounds'));
+    public function index(Request $request)
+    {
+        $query = OutboundTransaction::with(['customer', 'outboundDetails'])
+            ->orderBy('Tanggal', 'desc')
+            ->orderBy('Outbound_ID', 'desc');
+
+        // Filter Customer
+        if ($request->filled('customer_id')) {
+            $query->where('Customer_ID', $request->customer_id);
+        }
+
+        // Tabel 1 — Picking Task Queue (belum complete)
+        $pickingQueue = (clone $query)->where('picking_status', 'not_complete')->get();
+
+        // Tabel 2 — Riwayat Outbound (sudah complete)
+        $riwayat = (clone $query)->where('picking_status', 'complete')->paginate(15)->withQueryString();
+
+        $customers = Customer::orderBy('Nama')->get();
+
+        return view('outbound.index', compact('pickingQueue', 'riwayat', 'customers'));
     }
+
+    // =========================================================
+    // CREATE — Form Tambah Outbound
+    // =========================================================
 
     public function create()
     {
-        $customers = Customer::all();
-        $barang = MasterBarang::all();
-        $racks = RackLocation::all();
+        $customers = Customer::orderBy('Nama')->get();
 
-        return view('outbound.create', compact(
-            'customers',
-            'barang',
-            'racks'
-        ));
+        // Hanya tampilkan barang yang stok > 0
+        $barangs = MasterBarang::with('rackLocation')
+            ->get()
+            ->filter(fn ($b) => $b->stok > 0)
+            ->values();
+
+        return view('outbound.create', compact('customers', 'barangs'));
     }
+
+    // =========================================================
+    // STORE — Simpan Transaksi Outbound
+    // =========================================================
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'No_Shipping' => 'required|string|max:100|unique:outbound_transactions,No_Shipping',
-            'Tanggal' => 'required|date',
-            'Customer_ID' => 'required|exists:customers,Customer_ID',
-            'No_Surat_Jalan' => 'nullable|string|max:100',
-            'SKU' => 'required|exists:master_barang,SKU',
-            'Rack_ID' => 'required|exists:rack_locations,Rack_ID',
-            'Qty' => 'required|integer|min:1',
+        $request->validate([
+            'Tanggal'                  => ['required', 'date'],
+            'Customer_ID'              => ['required', 'exists:customers,Customer_ID'],
+            'Nama_Penerima'            => ['required', 'string', 'max:255'],
+            'Catatan'                  => ['nullable', 'string'],
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.SKU'              => ['required', 'exists:master_barang,SKU'],
+            'items.*.Qty'              => ['required', 'integer', 'min:1'],
+        ], [
+            'Customer_ID.required' => 'Customer wajib dipilih.',
+            'Nama_Penerima.required' => 'Nama penerima wajib diisi.',
+            'items.required'       => 'Minimal harus ada satu baris barang.',
         ]);
 
-        // VALIDASI STOK: Hitung stok tersedia untuk SKU yang diminta
-        $stokTersedia = $this->getAvailableStock($validated['SKU']);
-
-        // Jika Qty yang diminta lebih besar dari stok tersedia, tolak transaksi
-        if ($validated['Qty'] > $stokTersedia) {
-            return redirect()
-                ->back()
-                ->withInput()
-                ->withErrors([
-                    'Qty' => "Stok tidak mencukupi! SKU {$validated['SKU']} hanya tersedia {$stokTersedia} unit, Anda meminta {$validated['Qty']} unit."
-                ]);
+        // Validasi stok sebelum menyimpan
+        foreach ($request->items as $i => $item) {
+            $barang = MasterBarang::find($item['SKU']);
+            if (!$barang || $barang->stok < $item['Qty']) {
+                $available = $barang ? $barang->stok : 0;
+                return back()->withInput()->with('error',
+                    "Stok tidak mencukupi untuk SKU {$item['SKU']}. Tersedia: {$available}, diminta: {$item['Qty']}."
+                );
+            }
         }
 
-        // GENERATE PICKING LIST berdasarkan FIFO sebelum menyimpan transaksi
-        $pickingList = $this->generatePickingList($validated['SKU'], $validated['Qty']);
+        DB::beginTransaction();
 
-        // Variable untuk menyimpan Outbound_ID yang baru dibuat
-        $outboundId = null;
+        try {
+            $noShipping = $this->generateNoShipping();
 
-        // Gunakan database transaction untuk memastikan data tersimpan lengkap
-        DB::transaction(function () use ($validated, &$outboundId) {
+            // Hitung total qty untuk auto-priority
+            $totalQty = collect($request->items)->sum('Qty');
+            $priority = $this->calculatePriority($totalQty);
+
             $outbound = OutboundTransaction::create([
-                'No_Shipping' => $validated['No_Shipping'],
-                'Tanggal' => $validated['Tanggal'],
-                'Customer_ID' => $validated['Customer_ID'],
-                'No_Surat_Jalan' => $validated['No_Surat_Jalan'] ?? null,
-                // Temporary: gunakan user pertama jika auth belum tersedia
-                // Nanti akan diganti setelah authentication terintegrasi
-                'User_ID' => auth()->id() ?? 1,
+                'No_Shipping'    => $noShipping,
+                'Tanggal'        => $request->Tanggal,
+                'Customer_ID'    => $request->Customer_ID,
+                'User_ID'        => Auth::id(),
+                'picking_status' => 'not_complete',
+                'priority'       => $priority,
+                'Nama_Penerima'  => trim($request->Nama_Penerima),
+                'Catatan'        => $request->filled('Catatan') ? trim($request->Catatan) : null,
             ]);
 
-            // Simpan ID untuk digunakan di luar transaction
-            $outboundId = $outbound->Outbound_ID;
-
-            OutboundDetail::create([
-                'Outbound_ID' => $outbound->Outbound_ID,
-                'SKU' => $validated['SKU'],
-                'Rack_ID' => $validated['Rack_ID'],
-                'Qty' => $validated['Qty'],
-            ]);
-        });
-
-        // Redirect ke halaman picking list dengan data picking
-        return redirect()
-            ->route('outbound.picking-list', $outboundId)
-            ->with('pickingList', $pickingList)
-            ->with('success', 'Pengiriman berhasil disimpan. Berikut adalah Picking List.');
-    }
-
-    /**
-     * Menghitung stok tersedia untuk SKU tertentu.
-     * 
-     * RUMUS: STOK TERSEDIA = SUM(inbound_details.Qty) - SUM(outbound_details.Qty)
-     * 
-     * @param string $sku
-     * @return int
-     */
-    private function getAvailableStock(string $sku): int
-    {
-        // Hitung total barang masuk (inbound) untuk SKU ini
-        $totalInbound = InboundDetail::where('SKU', $sku)->sum('Qty');
-
-        // Hitung total barang keluar (outbound) untuk SKU ini
-        $totalOutbound = OutboundDetail::where('SKU', $sku)->sum('Qty');
-
-        // Stok tersedia = inbound - outbound
-        return $totalInbound - $totalOutbound;
-    }
-
-    /**
-     * Generate Picking List berdasarkan FIFO (First In First Out).
-     * 
-     * ALGORITMA FIFO:
-     * 1. Ambil semua inbound_details untuk SKU tertentu
-     * 2. Urutkan berdasarkan tanggal inbound (paling lama dulu)
-     * 3. Hitung stok tersisa di setiap inbound detail
-     * 4. Alokasikan qty yang diminta dari stok paling lama
-     * 5. Jika satu sumber tidak cukup, lanjut ke sumber berikutnya (split)
-     * 
-     * @param string $sku
-     * @param int $qtyNeeded
-     * @return array
-     */
-    /**
-     * Generate Picking List berdasarkan FIFO (First In First Out).
-     * 
-     * @param string $sku
-     * @param int $qtyNeeded
-     * @param int|null $upToOutboundId ID outbound jika meregenerasi untuk transaksi historis
-     * @return array
-     */
-    private function generatePickingList(string $sku, int $qtyNeeded, ?int $upToOutboundId = null): array
-    {
-        $pickingList = [];
-        $remainingQty = $qtyNeeded;
-
-        // Ambil semua inbound_details untuk SKU ini dengan relasi inboundTransaction dan rackLocation
-        // Urutkan berdasarkan Tanggal inbound (FIFO) dan Inbound_ID sebagai tie-breaker
-        $inboundDetails = InboundDetail::with(['inboundTransaction', 'rackLocation', 'masterBarang'])
-            ->where('SKU', $sku)
-            ->get()
-            ->sortBy(function ($detail) {
-                return [
-                    $detail->inboundTransaction->Tanggal->format('Y-m-d'),
-                    $detail->inboundTransaction->Inbound_ID
-                ];
-            });
-
-        // Loop setiap inbound detail untuk alokasi FIFO
-        foreach ($inboundDetails as $inboundDetail) {
-            // Jika sudah terpenuhi, hentikan loop
-            if ($remainingQty <= 0) {
-                break;
+            foreach ($request->items as $item) {
+                $barang = MasterBarang::find($item['SKU']);
+                OutboundDetail::create([
+                    'Outbound_ID' => $outbound->Outbound_ID,
+                    'SKU'         => $item['SKU'],
+                    'Rack_ID'     => $barang?->Rack_ID,
+                    'Qty'         => (int) $item['Qty'],
+                ]);
             }
 
-            // Hitung stok tersisa dari inbound detail ini
-            $qtyTersisa = $this->getAvailableStockFromInboundDetail($inboundDetail, $upToOutboundId);
+            DB::commit();
 
-            // Jika tidak ada stok tersisa di inbound detail ini, skip
-            if ($qtyTersisa <= 0) {
-                continue;
-            }
+            ActivityLog::record("Transaksi Outbound baru dibuat dengan No. [{$noShipping}] oleh [{$this->operatorLabel()}].");
 
-            // Tentukan berapa banyak yang akan diambil dari sumber ini
-            $qtyToTake = min($remainingQty, $qtyTersisa);
+            return redirect()->route('outbound.show', $outbound->Outbound_ID)
+                ->with('success', "Outbound {$noShipping} berhasil dibuat. Selesaikan Picking List untuk mencetak Surat Jalan.");
 
-            // Tambahkan ke picking list
-            $pickingList[] = [
-                'sku' => $inboundDetail->SKU,
-                'nama_barang' => $inboundDetail->masterBarang->Nama,
-                'rack_id' => $inboundDetail->Rack_ID,
-                'kode_rak' => $inboundDetail->rackLocation->Kode_Rak,
-                'batch' => $inboundDetail->Batch ?? '-',
-                'qty_pick' => $qtyToTake,
-                'tanggal_inbound' => $inboundDetail->inboundTransaction->Tanggal->format('Y-m-d'),
-                'inbound_id' => $inboundDetail->inboundTransaction->Inbound_ID,
-                'no_receiving' => $inboundDetail->inboundTransaction->No_Receiving,
-            ];
-
-            // Kurangi remaining qty
-            $remainingQty -= $qtyToTake;
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Gagal menyimpan: ' . $e->getMessage());
         }
-
-        return $pickingList;
     }
 
-    /**
-     * Menghitung stok tersisa dari satu inbound_detail tertentu.
-     * 
-     * @param InboundDetail $inboundDetail
-     * @param int|null $upToOutboundId
-     * @return int
-     */
-    private function getAvailableStockFromInboundDetail(InboundDetail $inboundDetail, ?int $upToOutboundId = null): int
+    // =========================================================
+    // SHOW — Detail Outbound
+    // =========================================================
+
+    public function show(int $id)
     {
-        $sku = $inboundDetail->SKU;
-        
-        $allInboundDetails = InboundDetail::with('inboundTransaction')
-            ->where('SKU', $sku)
-            ->get()
-            ->sortBy(function ($detail) {
-                return [
-                    $detail->inboundTransaction->Tanggal->format('Y-m-d'),
-                    $detail->inboundTransaction->Inbound_ID
-                ];
-            });
+        $outbound = OutboundTransaction::with([
+            'customer',
+            'user',
+            'outboundDetails.masterBarang',
+            'outboundDetails.rackLocation',
+        ])->findOrFail($id);
 
-        // Ambil total outbound details untuk SKU ini
-        $query = OutboundDetail::where('SKU', $sku);
-        if ($upToOutboundId !== null) {
-            $query->where('Outbound_ID', '<', $upToOutboundId);
-        }
-        $totalOutboundQty = $query->sum('Qty');
-
-        // Simulasi FIFO: kurangi qty outbound dari inbound details secara berurutan
-        $remainingOutbound = $totalOutboundQty;
-        
-        foreach ($allInboundDetails as $detail) {
-            if ($detail->Detail_ID === $inboundDetail->Detail_ID) {
-                $qtyUsed = min($remainingOutbound, $detail->Qty);
-                return $detail->Qty - $qtyUsed;
-            }
-
-            $remainingOutbound -= $detail->Qty;
-
-            if ($remainingOutbound <= 0) {
-                return $inboundDetail->Qty;
-            }
-        }
-
-        return $inboundDetail->Qty;
+        return view('outbound.show', compact('outbound'));
     }
 
-    /**
-     * Tampilkan Picking List setelah transaksi outbound berhasil.
-     * 
-     * @param int $outboundId
-     * @return \Illuminate\View\View
-     */
-    public function showPickingList(int $outboundId)
+    // =========================================================
+    // SHOW PICKING LIST — Detail Picking
+    // =========================================================
+
+    public function showPickingList(int $id)
     {
-        // Ambil data outbound transaction dengan relasi
-        $outbound = OutboundTransaction::with(['customer', 'outboundDetails.masterBarang', 'outboundDetails.rackLocation'])
-            ->findOrFail($outboundId);
+        $outbound = OutboundTransaction::with([
+            'customer',
+            'user',
+            'outboundDetails.masterBarang',
+            'outboundDetails.rackLocation',
+        ])->findOrFail($id);
 
-        // Ambil picking list dari session (jika ada)
-        $pickingList = session('pickingList', []);
-
-        // Jika tidak ada di session, generate ulang berdasarkan outbound detail
-        if (empty($pickingList)) {
-            $outboundDetail = $outbound->outboundDetails->first();
-            if ($outboundDetail) {
-                $pickingList = $this->generatePickingList($outboundDetail->SKU, $outboundDetail->Qty, $outbound->Outbound_ID);
-            }
-        }
-
-        return view('outbound.picking-list', compact('outbound', 'pickingList'));
+        return view('outbound.picking-list', compact('outbound'));
     }
 
-    /**
-     * Generate dan download PDF Surat Jalan.
-     * 
-     * @param int $outboundId
-     * @return \Illuminate\Http\Response
-     */
-    public function downloadSuratJalan(int $outboundId)
-    {
-        // Ambil data outbound transaction dengan relasi
-        $outbound = OutboundTransaction::with(['customer', 'outboundDetails.masterBarang', 'outboundDetails.rackLocation'])
-            ->findOrFail($outboundId);
+    // =========================================================
+    // COMPLETE PICKING — Mark Picking List as Complete
+    // =========================================================
 
-        // Generate picking list untuk ditampilkan di surat jalan
-        $pickingList = [];
-        foreach ($outbound->outboundDetails as $detail) {
-            $pickingList = array_merge(
-                $pickingList,
-                $this->generatePickingList($detail->SKU, $detail->Qty, $outbound->Outbound_ID)
-            );
+    public function completePicking(int $id)
+    {
+        $outbound = OutboundTransaction::findOrFail($id);
+
+        if ($outbound->isComplete()) {
+            return back()->with('info', 'Picking List ini sudah selesai sebelumnya.');
         }
 
-        // Load view dan generate PDF
-        $pdf = Pdf::loadView('outbound.surat-jalan-pdf', compact('outbound', 'pickingList'));
-        
-        // Set paper size dan orientasi
+        $outbound->update(['picking_status' => 'complete']);
+
+        ActivityLog::record("Picking List untuk Outbound [{$outbound->No_Shipping}] di-mark Complete oleh [{$this->operatorLabel()}].");
+
+        return redirect()->route('outbound.show', $outbound->Outbound_ID)
+            ->with('success', "Picking List {$outbound->No_Shipping} selesai. Surat Jalan siap diunduh.");
+    }
+
+    // =========================================================
+    // DOWNLOAD SURAT JALAN PDF — Gatekeeping: harus complete
+    // =========================================================
+
+    public function downloadSuratJalan(int $id)
+    {
+        $outbound = OutboundTransaction::with([
+            'customer',
+            'outboundDetails.masterBarang',
+            'outboundDetails.rackLocation',
+        ])->findOrFail($id);
+
+        // Gatekeeping ketat sesuai arahan
+        if (!$outbound->isComplete()) {
+            abort(403, 'Surat Jalan hanya dapat dicetak setelah Picking List selesai.');
+        }
+
+        $pdf = Pdf::loadView('outbound.surat-jalan-pdf', compact('outbound'));
         $pdf->setPaper('a4', 'portrait');
 
-        // Download PDF dengan nama file yang sesuai
         $filename = 'Surat_Jalan_' . $outbound->No_Shipping . '.pdf';
-        
         return $pdf->download($filename);
+    }
+
+    // =========================================================
+    // STORE CUSTOMER AJAX — Tambah Customer via Modal
+    // =========================================================
+
+    public function storeCustomerAjax(Request $request)
+    {
+        $request->validate([
+            'Nama'      => ['required', 'string', 'max:255'],
+            'No_Kontak' => ['nullable', 'string', 'max:20'],
+            'Email'     => ['nullable', 'email', 'max:255'],
+            'Alamat'    => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $customer = Customer::create([
+            'Nama'      => $request->Nama,
+            'Kontak'    => $request->No_Kontak,
+            'No_Kontak' => $request->No_Kontak,
+            'Email'     => $request->Email,
+            'Alamat'    => $request->Alamat,
+        ]);
+
+        ActivityLog::record("Customer baru [{$customer->Nama}] ditambahkan via modal Outbound oleh [{$this->operatorLabel()}].");
+
+        return response()->json([
+            'success'  => true,
+            'customer' => [
+                'id'   => $customer->Customer_ID,
+                'nama' => $customer->Nama,
+            ],
+        ]);
+    }
+
+    // =========================================================
+    // PRIVATE HELPERS
+    // =========================================================
+
+    /**
+     * Generate No. Shipping format: SJ-YYYYMMDD-XXXX
+     */
+    private function generateNoShipping(): string
+    {
+        $today = now()->format('Ymd');
+        $count = OutboundTransaction::whereDate('Tanggal', today())->count();
+        return 'SJ-' . $today . '-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Auto-priority berdasarkan total qty.
+     */
+    private function calculatePriority(int $totalQty): string
+    {
+        if ($totalQty > 50)  return 'high';
+        if ($totalQty > 10)  return 'normal';
+        return 'decent';
+    }
+
+    /**
+     * Label operator untuk Activity Log.
+     */
+    private function operatorLabel(): string
+    {
+        $user = Auth::user();
+        if (!$user) return 'Sistem';
+        if ($user->isAdmin()) return 'Guru: ' . $user->name;
+
+        $identity = session('student_identity');
+        if ($identity && !empty($identity['name'])) {
+            return "Operator: {$identity['name']} | {$identity['class']}";
+        }
+        return 'Siswa: ' . $user->name;
     }
 }

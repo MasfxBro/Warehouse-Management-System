@@ -14,18 +14,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('suppliers', function (Blueprint $table) {
-            // Primary Key — auto increment
             $table->id('Supplier_ID');
-
-            // Nama perusahaan atau individu supplier
-            $table->string('Nama', 255)->comment('Nama supplier');
-
-            // Informasi kontak (nomor telepon, email, atau nama PIC)
-            $table->string('Kontak', 255)->nullable()->comment('Informasi kontak supplier');
-
+            $table->string('Nama', 255)->comment('Nama supplier / perusahaan');
+            $table->string('Kontak', 255)->nullable()->comment('Kontak gabungan / ringkas');
+            $table->string('No_Kontak', 100)->nullable()->comment('Nomor telepon kontak');
+            $table->string('Email', 150)->nullable()->comment('Email perusahaan/kontak');
+            $table->text('Alamat')->nullable()->comment('Alamat lengkap perusahaan supplier');
             $table->timestamps();
 
-            // Index untuk pencarian berdasarkan nama
             $table->index('Nama');
         });
     }

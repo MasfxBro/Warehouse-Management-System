@@ -64,7 +64,7 @@ class User extends Authenticatable
     // =========================================================
 
     /**
-     * Cek apakah user memiliki role admin.
+     * Cek apakah user memiliki role admin (Guru).
      */
     public function isAdmin(): bool
     {
@@ -72,19 +72,27 @@ class User extends Authenticatable
     }
 
     /**
-     * Cek apakah user memiliki role manager.
+     * Cek apakah user memiliki role user (Operator / Siswa).
      */
-    public function isManager(): bool
+    public function isUser(): bool
     {
-        return $this->role === UserRole::Manager;
+        return $this->role === UserRole::User;
     }
 
     /**
-     * Cek apakah user memiliki role operator.
+     * Alias helper untuk isUser (Siswa).
+     */
+    public function isSiswa(): bool
+    {
+        return $this->isUser();
+    }
+
+    /**
+     * Alias helper untuk isUser (Operator).
      */
     public function isOperator(): bool
     {
-        return $this->role === UserRole::Operator;
+        return $this->isUser();
     }
 
     // =========================================================
