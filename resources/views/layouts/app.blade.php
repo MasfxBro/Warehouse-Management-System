@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'WMS Prototipe 2') — Warehouse Management System</title>
 
-    <!-- Font Awesome 6 Free CDN -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-          integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W=="
-          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Disable browser speculative prefetching (Chrome, Edge) -->
+    <meta http-equiv="x-dns-prefetch-control" content="off">
+    <meta name="referrer" content="no-referrer">
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -88,7 +87,7 @@
             @php $isInbound = request()->routeIs('inbound.*'); @endphp
             <a href="{{ route('inbound.index') }}"
                class="sidebar-link {{ $isInbound ? 'active' : '' }}">
-                <i class="fa-solid fa-arrow-down-to-bracket {{ $isInbound ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-truck-ramp-box {{ $isInbound ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
                 <span>Inbound (Masuk)</span>
             </a>
 

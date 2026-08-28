@@ -110,7 +110,7 @@ const masterBarangs  = @json($masterBarangs->map(fn($b) => ['sku'=>$b->SKU,'nama
 const rackLocations  = @json($rackLocations->map(fn($r) => ['id'=>$r->Rack_ID,'label'=>$r->Kode_Rak.' (Aisle '.$r->Aisle.', Lvl '.$r->Level.')']));
 const kategoriList   = @json($kategoriList);
 const csrfToken      = '{{ csrf_token() }}';
-const supplierAjaxUrl = '{{ route('inbound.supplier.ajax') }}';
+const supplierAjaxUrl = '{{ route("inbound.supplier.ajax") }}';
 let itemCount = 0;
 
 function buildRackOptions(sel=null){return '<option value="">— Pilih Rak —</option>'+rackLocations.map(r=>`<option value="${r.id}"${sel==r.id?' selected':''}>${r.label}</option>`).join('');}

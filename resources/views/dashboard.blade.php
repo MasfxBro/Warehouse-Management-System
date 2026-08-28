@@ -85,7 +85,7 @@
                 <p class="stat-card-sub">Transaksi masuk</p>
             </div>
             <div class="stat-card-icon bg-emerald-50 text-[#10b981]">
-                <i class="fa-solid fa-arrow-down-to-bracket text-base"></i>
+                <i class="fa-solid fa-truck-ramp-box text-base"></i>
             </div>
         </div>
 
@@ -153,7 +153,6 @@
             <div class="wms-card-header">
                 <div class="flex items-center gap-2">
                     <h3 class="wms-card-title">Antrian Picking</h3>
-                    @php $pendingCount = \App\Models\OutboundTransaction::where('picking_status','not_complete')->count(); @endphp
                     @if($pendingCount > 0)
                         <span class="badge badge-warning">{{ $pendingCount }} pending</span>
                     @else
@@ -165,12 +164,6 @@
                 </a>
             </div>
             <div class="flex-1 overflow-y-auto divide-y divide-[#f2f4f6]">
-                @php
-                    $pendingOutbounds = \App\Models\OutboundTransaction::with('customer')
-                        ->where('picking_status','not_complete')
-                        ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END")
-                        ->limit(6)->get();
-                @endphp
                 @forelse($pendingOutbounds as $trx)
                     <a href="{{ route('outbound.picking-list', $trx->Outbound_ID) }}"
                        class="flex items-start gap-3 px-4 py-3 hover:bg-[#f7f9fb] transition-colors group">

@@ -8,6 +8,8 @@ use App\Models\OutboundTransaction;
 use App\Models\InboundDetail;
 use App\Models\OutboundDetail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -17,90 +19,110 @@ class DashboardController extends Controller
      */
     public function index(Request $request)
     {
-        $items = MasterBarang::with(['inboundDetails', 'outboundDetails'])->get();
+        // --- Stat Cards (cache 2 menit) ---
+        // Seluruh master barang dengan relasi eager-loaded sekali saja
+        $stats = Cache::remember('dashboard_stats', 120, function () {
+            $items = MasterBarang::with(['inboundDetails', 'outboundDetails'])->get();
 
-        $totalSku    = $items->count();
-        $totalStok   = $items->sum(fn($item) => $item->stok);
-        $nilaiGudang = $items->sum(fn($item) => $item->nilai_barang);
+            return [
+                'totalSku'      => $items->count(),
+                'totalStok'     => $items->sum(fn($item) => $item->stok),
+                'nilaiGudang'   => $items->sum(fn($item) => $item->nilai_barang),
+                'lowStockItems' => $items->filter(fn($item) => $item->stok <= $item->Min_Stok)->values(),
+            ];
+        });
 
-        $today = now()->format('Y-m-d');
-        $inboundTodayCount  = InboundTransaction::whereDate('Tanggal', $today)->count();
-        $outboundTodayCount = OutboundTransaction::whereDate('Tanggal', $today)->count();
+        $today = now()->toDateString();
 
-        $lowStockItems = $items->filter(fn($item) => $item->stok <= $item->Min_Stok)->values();
-        $lowStockCount = $lowStockItems->count();
+        $inboundTodayCount  = Cache::remember('inbound_today_' . $today, 120, fn() =>
+            InboundTransaction::whereDate('Tanggal', $today)->count()
+        );
+        $outboundTodayCount = Cache::remember('outbound_today_' . $today, 120, fn() =>
+            OutboundTransaction::whereDate('Tanggal', $today)->count()
+        );
 
-        // Periode chart filter (default: seminggu_ini)
-        $period = $request->query('period', 'seminggu_ini');
-        $chartData = $this->getChartData($period);
+        // --- Picking Queue (cache 60 detik) ---
+        $pendingOutbounds = Cache::remember('picking_queue', 60, function () {
+            return OutboundTransaction::with('customer')
+                ->where('picking_status', 'not_complete')
+                ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END")
+                ->limit(6)
+                ->get();
+        });
+        $pendingCount = Cache::remember('picking_count', 60, fn() =>
+            OutboundTransaction::where('picking_status', 'not_complete')->count()
+        );
 
-        return view('dashboard', compact(
-            'totalSku',
-            'totalStok',
-            'nilaiGudang',
-            'inboundTodayCount',
-            'outboundTodayCount',
-            'lowStockItems',
-            'lowStockCount',
-            'chartData',
-            'period'
-        ));
+        // --- Chart Data (cache 5 menit per period) ---
+        $period    = $request->query('period', 'seminggu_ini');
+        $chartData = Cache::remember('chart_' . $period, 300, fn() => $this->getChartData($period));
+
+        return view('dashboard', [
+            'totalSku'          => $stats['totalSku'],
+            'totalStok'         => $stats['totalStok'],
+            'nilaiGudang'       => $stats['nilaiGudang'],
+            'lowStockItems'     => $stats['lowStockItems'],
+            'lowStockCount'     => $stats['lowStockItems']->count(),
+            'inboundTodayCount' => $inboundTodayCount,
+            'outboundTodayCount'=> $outboundTodayCount,
+            'pendingOutbounds'  => $pendingOutbounds,
+            'pendingCount'      => $pendingCount,
+            'chartData'         => $chartData,
+            'period'            => $period,
+        ]);
     }
 
     /**
      * Hitung dataset grafik Inbound vs Outbound berdasarkan periode.
+     * Menggunakan JOIN langsung ke inbound_transactions / outbound_transactions
+     * (lebih efisien dari whereHas subquery).
      */
     private function getChartData(string $period): array
     {
-        $labels = [];
-        $inboundData = [];
+        $labels       = [];
+        $inboundData  = [];
         $outboundData = [];
 
         if ($period === 'seminggu' || $period === '7days') {
             // 7 Hari Terakhir
             for ($i = 6; $i >= 0; $i--) {
-                $date = now()->subDays($i);
-                $dateStr = $date->format('Y-m-d');
-                $labels[] = $date->format('d M');
+                $date    = now()->subDays($i)->toDateString();
+                $labels[] = now()->subDays($i)->format('d M');
 
-                $inboundData[]  = InboundDetail::whereHas('inboundTransaction', fn($q) => $q->whereDate('Tanggal', $dateStr))->sum('Qty');
-                $outboundData[] = OutboundDetail::whereHas('outboundTransaction', fn($q) => $q->whereDate('Tanggal', $dateStr))->sum('Qty');
+                $inboundData[]  = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $date, $date);
+                $outboundData[] = $this->sumDetailByDate('outbound_details', 'outbound_transactions', $date, $date);
             }
         } elseif ($period === 'sebulan' || $period === 'this_month') {
-            // Sebulan (per 5 hari / mingguan dalam bulan ini)
-            $startOfMonth = now()->startOfMonth();
-            $daysInMonth  = now()->daysInMonth;
-            
+            // Sebulan (per 5 hari)
+            $daysInMonth = now()->daysInMonth;
             for ($day = 1; $day <= $daysInMonth; $day += 5) {
-                $start = now()->setDate(now()->year, now()->month, $day);
+                $start = now()->startOfMonth()->addDays($day - 1);
                 $end   = (clone $start)->addDays(4);
                 if ($end->month !== now()->month) {
                     $end = now()->endOfMonth();
                 }
-
-                $labels[] = $start->format('d') . '-' . $end->format('d M');
-                $inboundData[]  = InboundDetail::whereHas('inboundTransaction', fn($q) => $q->whereBetween('Tanggal', [$start->format('Y-m-d'), $end->format('Y-m-d')]))->sum('Qty');
-                $outboundData[] = OutboundDetail::whereHas('outboundTransaction', fn($q) => $q->whereBetween('Tanggal', [$start->format('Y-m-d'), $end->format('Y-m-d')]))->sum('Qty');
+                $labels[]       = $start->format('d') . '-' . $end->format('d M');
+                $inboundData[]  = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $start->toDateString(), $end->toDateString());
+                $outboundData[] = $this->sumDetailByDate('outbound_details', 'outbound_transactions', $start->toDateString(), $end->toDateString());
             }
         } elseif ($period === 'setahun' || $period === 'this_year') {
-            // Setahun (Jan - Des)
+            // Setahun (Jan–Des)
             for ($m = 1; $m <= 12; $m++) {
-                $monthDate = now()->setDate(now()->year, $m, 1);
-                $labels[] = $monthDate->format('M');
-
-                $inboundData[]  = InboundDetail::whereHas('inboundTransaction', fn($q) => $q->whereYear('Tanggal', now()->year)->whereMonth('Tanggal', $m))->sum('Qty');
-                $outboundData[] = OutboundDetail::whereHas('outboundTransaction', fn($q) => $q->whereYear('Tanggal', now()->year)->whereMonth('Tanggal', $m))->sum('Qty');
+                $start = Carbon::create(now()->year, $m, 1)->startOfMonth()->toDateString();
+                $end   = Carbon::create(now()->year, $m, 1)->endOfMonth()->toDateString();
+                $labels[]       = Carbon::create(now()->year, $m, 1)->format('M');
+                $inboundData[]  = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $start, $end);
+                $outboundData[] = $this->sumDetailByDate('outbound_details', 'outbound_transactions', $start, $end);
             }
         } else {
-            // Default: Seminggu Ini (Senin - Minggu minggu berjalan)
+            // Default: Seminggu Ini (Senin–Minggu)
             $startOfWeek = now()->startOfWeek();
             for ($i = 0; $i < 7; $i++) {
-                $date = (clone $startOfWeek)->addDays($i);
-                $dateStr = $date->format('Y-m-d');
-                $labels[] = $date->format('D, d M');
+                $date     = (clone $startOfWeek)->addDays($i)->toDateString();
+                $labels[] = (clone $startOfWeek)->addDays($i)->format('D, d M');
 
-                $inboundData[]  = InboundDetail::whereHas('inboundTransaction', fn($q) => $q->whereDate('Tanggal', $dateStr))->sum('Qty');
-                $outboundData[] = OutboundDetail::whereHas('outboundTransaction', fn($q) => $q->whereDate('Tanggal', $dateStr))->sum('Qty');
+                $inboundData[]  = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $date, $date);
+                $outboundData[] = $this->sumDetailByDate('outbound_details', 'outbound_transactions', $date, $date);
             }
         }
 
@@ -109,5 +131,30 @@ class DashboardController extends Controller
             'inbound'  => $inboundData,
             'outbound' => $outboundData,
         ];
+    }
+
+    /**
+     * Helper: SUM(Qty) dari detail table via JOIN ke transaction table,
+     * filter by Tanggal range. Jauh lebih efisien dari whereHas subquery.
+     */
+    private function sumDetailByDate(
+        string $detailTable,
+        string $transactionTable,
+        string $dateFrom,
+        string $dateTo
+    ): int {
+        // Tentukan foreign key dan transaction PK sesuai tabel
+        if ($detailTable === 'inbound_details') {
+            $fk = 'inbound_details.Inbound_ID';
+            $pk = 'inbound_transactions.Inbound_ID';
+        } else {
+            $fk = 'outbound_details.Outbound_ID';
+            $pk = 'outbound_transactions.Outbound_ID';
+        }
+
+        return (int) DB::table($detailTable)
+            ->join($transactionTable, $fk, '=', $pk)
+            ->whereBetween("{$transactionTable}.Tanggal", [$dateFrom, $dateTo])
+            ->sum("{$detailTable}.Qty");
     }
 }

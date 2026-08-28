@@ -72,11 +72,21 @@ class MasterBarang extends Model
 
     /**
      * Accessor untuk stok real-time (Inbound Qty - Outbound Qty).
+     *
+     * Menggunakan property (tanpa `()`) supaya pakai eager-loaded collection
+     * jika relasi sudah di-load via with(), bukan query baru per item.
      */
     public function getStokAttribute(): int
     {
-        $inbound = $this->inboundDetails()->sum('Qty');
-        $outbound = $this->outboundDetails()->sum('Qty');
+        // Jika relasi sudah eager-loaded, gunakan collection langsung (O(1))
+        // Jika belum, baru query DB — fallback aman tapi hindari di loop
+        if ($this->relationLoaded('inboundDetails') && $this->relationLoaded('outboundDetails')) {
+            $inbound  = $this->inboundDetails->sum('Qty');
+            $outbound = $this->outboundDetails->sum('Qty');
+        } else {
+            $inbound  = $this->inboundDetails()->sum('Qty');
+            $outbound = $this->outboundDetails()->sum('Qty');
+        }
         return max(0, $inbound - $outbound);
     }
 
