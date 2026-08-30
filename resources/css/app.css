@@ -363,9 +363,20 @@ body {
 .search-group {
     display: flex;
     align-items: center;
+    position: relative;
+}
+.search-group .search-icon {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 1;
 }
 .search-group .search-input {
-    padding: 0.5rem 0.875rem;
+    padding: 0.5rem 0.875rem 0.5rem 2rem;
     font-size: 0.75rem;
     border: 1px solid #d1d5db;
     border-right: none;

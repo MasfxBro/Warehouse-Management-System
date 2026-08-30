@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Kartu Stok — ' . $barang->SKU)
-@section('page_heading', 'Kartu Stok — ' . $barang->SKU)
+@section('title', 'Kartu Stok - ' . $barang->SKU)
+@section('page_heading', 'Kartu Stok - ' . $barang->SKU)
 
 @section('content')
 <div class="space-y-5">

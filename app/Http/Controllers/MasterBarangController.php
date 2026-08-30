@@ -20,15 +20,16 @@ class MasterBarangController extends Controller
         $query = MasterBarang::with(['rackLocation', 'inboundDetails', 'outboundDetails']);
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('SKU', 'like', "%{$search}%")
-                  ->orWhere('Nama', 'like', "%{$search}%")
-                  ->orWhere('Kategori', 'like', "%{$search}%");
+            $searchLower = strtolower($search);
+            $query->where(function ($q) use ($searchLower) {
+                $q->whereRaw("LOWER(\"SKU\") LIKE ?", ['%' . $searchLower . '%'])
+                  ->orWhereRaw("LOWER(\"Nama\") LIKE ?", ['%' . $searchLower . '%'])
+                  ->orWhereRaw("LOWER(\"Kategori\") LIKE ?", ['%' . $searchLower . '%']);
             });
         }
 
         if ($kategori) {
-            $query->where('Kategori', $kategori);
+            $query->whereRaw("LOWER(\"Kategori\") = ?", [strtolower($kategori)]);
         }
 
         $items = $query->paginate(15)->withQueryString();

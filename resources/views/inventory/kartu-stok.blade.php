@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Kartu Stok')
-@section('page_heading', 'Inventory — Kartu Stok Barang')
+@section('page_heading', 'Inventory - Kartu Stok Barang')
 
 @section('content')
 <div class="space-y-5">
@@ -16,7 +16,7 @@
         <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] pointer-events-none"></i>
             <input type="text" id="live-search" placeholder="Cari SKU / nama / kategori..."
-                   class="wms-input w-72 text-xs pl-8" style="height:2.25rem;">
+                   class="wms-input w-72 text-xs" style="height:2.25rem;padding-left:2rem;">
         </div>
     </div>
 

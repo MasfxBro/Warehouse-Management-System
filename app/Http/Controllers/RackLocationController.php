@@ -18,10 +18,11 @@ class RackLocationController extends Controller
         $query = RackLocation::with(['inboundDetails', 'outboundDetails']);
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('Kode_Rak', 'like', "%{$search}%")
-                  ->orWhere('Aisle', 'like', "%{$search}%")
-                  ->orWhere('Level', 'like', "%{$search}%");
+            $searchLower = strtolower($search);
+            $query->where(function ($q) use ($searchLower) {
+                $q->whereRaw("LOWER(\"Kode_Rak\") LIKE ?", ['%' . $searchLower . '%'])
+                  ->orWhereRaw("LOWER(\"Aisle\") LIKE ?", ['%' . $searchLower . '%'])
+                  ->orWhereRaw("LOWER(\"Level\") LIKE ?", ['%' . $searchLower . '%']);
             });
         }
 

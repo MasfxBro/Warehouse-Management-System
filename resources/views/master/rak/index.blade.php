@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Lokasi Rak')
-@section('page_heading', 'Master Data — Lokasi Rak')
+@section('page_heading', 'Master Data - Lokasi Rak')
 
 @section('content')
 <div class="space-y-6">
@@ -19,14 +19,13 @@
         <div class="flex flex-wrap items-center gap-3">
             <form action="{{ route('master.rak.index') }}" method="GET" class="flex items-center gap-2">
                 <div class="search-group">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
                     <input type="text"
                            name="search"
                            value="{{ $search }}"
                            placeholder="Cari kode rak / lorong..."
                            class="search-input" style="width:13rem;">
-                    <button type="submit" class="search-btn">
-                        <i class="fa-solid fa-magnifying-glass"></i> Cari
-                    </button>
+                    <button type="submit" class="search-btn">Cari</button>
                 </div>
                 @if($search)
                     <a href="{{ route('master.rak.index') }}"
@@ -39,7 +38,7 @@
             @if(auth()->user()->isAdmin())
                 <button type="button"
                         onclick="openAddModal()"
-                        class="btn-primary gap-1.5">
+                        class="btn btn-primary gap-1.5">
                     <i class="fa-solid fa-plus"></i> Tambah Rak
                 </button>
             @endif
@@ -94,14 +93,14 @@
                                     <td class="text-right space-x-1">
                                         <button type="button"
                                                 onclick="openEditModal({{ json_encode($rack) }})"
-                                                class="btn-outline gap-1.5">
+                                                class="btn btn-outline btn-sm gap-1.5">
                                             <i class="fa-solid fa-pen-to-square"></i> Edit
                                         </button>
                                         <form action="{{ route('master.rak.destroy', $rack->Rack_ID) }}" method="POST" class="inline"
                                               onsubmit="return confirm('Apakah Anda yakin ingin menghapus rak {{ $rack->Kode_Rak }}?');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn-danger gap-1.5">
+                                            <button type="submit" class="btn btn-danger btn-sm gap-1.5">
                                                 <i class="fa-solid fa-trash"></i> Hapus
                                             </button>
                                         </form>
@@ -180,7 +179,7 @@
                     <button type="button" onclick="closeModal()" class="btn-outline">
                         Batal
                     </button>
-                    <button type="submit" class="btn-primary gap-1.5">
+                    <button type="submit" class="btn btn-primary gap-1.5">
                         <i class="fa-solid fa-floppy-disk"></i> Simpan Data
                     </button>
                 </div>

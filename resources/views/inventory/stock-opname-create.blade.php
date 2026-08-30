@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Tambah Catatan Stock Opname')
-@section('page_heading', 'Stock Opname — Tambah Catatan')
+@section('page_heading', 'Stock Opname - Tambah Catatan')
 
 @section('content')
 <div class="max-w-2xl space-y-5">

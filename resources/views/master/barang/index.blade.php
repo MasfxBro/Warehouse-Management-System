@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Master Data Barang')
-@section('page_heading', 'Master Data — Inventori Barang')
+@section('page_heading', 'Master Data - Inventori Barang')
 
 @section('content')
 <div class="space-y-5">
@@ -35,12 +35,11 @@
                 @endforeach
             </select>
             <div class="search-group">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" name="search" value="{{ $search }}"
                        placeholder="Cari SKU / nama barang..."
                        class="search-input w-52">
-                <button type="submit" class="search-btn">
-                    <i class="fa-solid fa-magnifying-glass"></i> Cari
-                </button>
+                <button type="submit" class="search-btn">Cari</button>
             </div>
             @if($search || $kategori)
                 <a href="{{ route('master.barang.index') }}"

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'WMS Prototipe 2') — Warehouse Management System</title>
+    <title>@yield('title', 'WMS Prototipe 2') - Warehouse Management System</title>
 
     <!-- Disable browser speculative prefetching (Chrome, Edge) -->
     <meta http-equiv="x-dns-prefetch-control" content="off">
@@ -17,14 +17,14 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full bg-[#f7f9fb] text-[#191c1e] antialiased flex flex-col font-sans">
+<body class="h-full bg-surface text-on-surface antialiased flex flex-col font-sans">
 
 <div class="flex h-screen overflow-hidden">
 
     <!-- ============================================================
-         SIDEBAR — Fixed 240px
+         SIDEBAR — Fixed 240px, collapsible
          ============================================================ -->
-    <aside class="w-[240px] bg-white border-r border-[#e2e8f0] flex flex-col flex-shrink-0 z-20">
+    <aside id="main-sidebar" class="w-60 bg-white border-r border-[#e2e8f0] flex flex-col shrink-0 z-20 transition-all duration-300 ease-in-out">
 
         <!-- Logo / Brand -->
         <div class="h-14 flex items-center px-4 border-b border-[#e2e8f0] gap-3">
@@ -46,7 +46,7 @@
             @php $isDashboard = request()->routeIs('dashboard'); @endphp
             <a href="{{ route('dashboard') }}"
                class="sidebar-link {{ $isDashboard ? 'active' : '' }}">
-                <i class="fa-solid fa-gauge-high {{ $isDashboard ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-gauge-high {{ $isDashboard ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Dashboard</span>
             </a>
 
@@ -56,28 +56,28 @@
             @php $isBarang = request()->routeIs('master.barang.*'); @endphp
             <a href="{{ route('master.barang.index') }}"
                class="sidebar-link {{ $isBarang ? 'active' : '' }}">
-                <i class="fa-solid fa-boxes-stacked {{ $isBarang ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-boxes-stacked {{ $isBarang ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Data Barang</span>
             </a>
 
             @php $isRak = request()->routeIs('master.rak.*'); @endphp
             <a href="{{ route('master.rak.index') }}"
                class="sidebar-link {{ $isRak ? 'active' : '' }}">
-                <i class="fa-solid fa-layer-group {{ $isRak ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-layer-group {{ $isRak ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Lokasi Rak</span>
             </a>
 
             @php $isSupplier = request()->routeIs('master.supplier.*'); @endphp
             <a href="{{ route('master.supplier.index') }}"
                class="sidebar-link {{ $isSupplier ? 'active' : '' }}">
-                <i class="fa-solid fa-building {{ $isSupplier ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-building {{ $isSupplier ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Data Supplier</span>
             </a>
 
             @php $isCustomer = request()->routeIs('master.customer.*'); @endphp
             <a href="{{ route('master.customer.index') }}"
                class="sidebar-link {{ $isCustomer ? 'active' : '' }}">
-                <i class="fa-solid fa-users {{ $isCustomer ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-users {{ $isCustomer ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Data Customer</span>
             </a>
 
@@ -87,14 +87,14 @@
             @php $isInbound = request()->routeIs('inbound.*'); @endphp
             <a href="{{ route('inbound.index') }}"
                class="sidebar-link {{ $isInbound ? 'active' : '' }}">
-                <i class="fa-solid fa-truck-ramp-box {{ $isInbound ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-truck-ramp-box {{ $isInbound ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Inbound (Masuk)</span>
             </a>
 
             @php $isOutbound = request()->routeIs('outbound.*'); @endphp
             <a href="{{ route('outbound.index') }}"
                class="sidebar-link {{ $isOutbound ? 'active' : '' }}">
-                <i class="fa-solid fa-arrow-up-from-bracket {{ $isOutbound ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-arrow-up-from-bracket {{ $isOutbound ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Outbound (Keluar)</span>
             </a>
 
@@ -104,14 +104,14 @@
             @php $isKartuStok = request()->routeIs('inventory.kartu-stok.*'); @endphp
             <a href="{{ route('inventory.kartu-stok.index') }}"
                class="sidebar-link {{ $isKartuStok ? 'active' : '' }}">
-                <i class="fa-solid fa-rectangle-list {{ $isKartuStok ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-rectangle-list {{ $isKartuStok ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Kartu Stok</span>
             </a>
 
             @php $isOpname = request()->routeIs('inventory.stock-opname.*'); @endphp
             <a href="{{ route('inventory.stock-opname.index') }}"
                class="sidebar-link {{ $isOpname ? 'active' : '' }}">
-                <i class="fa-solid fa-clipboard-check {{ $isOpname ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-clipboard-check {{ $isOpname ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Stock Opname</span>
             </a>
 
@@ -121,7 +121,7 @@
             @php $isLaporan = request()->routeIs('laporan.*'); @endphp
             <a href="{{ route('laporan.index') }}"
                class="sidebar-link {{ $isLaporan ? 'active' : '' }}">
-                <i class="fa-solid fa-chart-bar {{ $isLaporan ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                <i class="fa-solid fa-chart-bar {{ $isLaporan ? 'text-secondary' : 'text-slate-400' }}"></i>
                 <span>Laporan & Export</span>
             </a>
 
@@ -132,7 +132,7 @@
                 @php $isLogs = request()->routeIs('logs.*'); @endphp
                 <a href="{{ route('logs.index') }}"
                    class="sidebar-link {{ $isLogs ? 'active' : '' }}">
-                    <i class="fa-solid fa-scroll {{ $isLogs ? 'text-[#0058be]' : 'text-slate-400' }}"></i>
+                    <i class="fa-solid fa-scroll {{ $isLogs ? 'text-secondary' : 'text-slate-400' }}"></i>
                     <span>Log Activity</span>
                 </a>
             @endif
@@ -140,10 +140,10 @@
         </nav>
 
         <!-- User Footer -->
-        <div class="px-3 pt-4 pb-4 border-t border-[#e2e8f0] bg-[#f7f9fb]">
+        <div class="px-3 pt-4 pb-4 border-t border-[#e2e8f0] bg-surface">
             <!-- User Info -->
             <div class="flex items-center gap-2.5 mb-3">
-                <div class="w-9 h-9 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                <div class="w-9 h-9 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-sm shrink-0">
                     {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
                 </div>
                 <div class="flex flex-col min-w-0 flex-1 gap-0.5">
@@ -172,8 +172,14 @@
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         <!-- TOPBAR -->
-        <header class="h-14 bg-white border-b border-[#e2e8f0] flex items-center justify-between px-6 z-10 flex-shrink-0">
+        <header class="h-14 bg-white border-b border-[#e2e8f0] flex items-center justify-between px-6 z-10 shrink-0">
             <div class="flex items-center gap-3">
+                <!-- Hamburger toggle sidebar -->
+                <button id="sidebar-toggle" type="button"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-surface-low transition-colors cursor-pointer"
+                        title="Toggle Sidebar">
+                    <i class="fa-solid fa-bars text-sm"></i>
+                </button>
                 <!-- Breadcrumb page title -->
                 <h1 class="topbar-heading">@yield('page_heading', 'Dashboard')</h1>
             </div>
@@ -187,53 +193,45 @@
                         Guru (Admin)
                     </span>
                 @else
-                    <span class="inline-flex items-center gap-1.5 bg-blue-50 text-[#0058be] border border-blue-200 text-[11px] font-semibold px-2.5 py-1 rounded-md">
+                    <span class="inline-flex items-center gap-1.5 bg-blue-50 text-secondary border border-blue-200 text-[11px] font-semibold px-2.5 py-1 rounded-md">
                         <i class="fa-solid fa-graduation-cap text-[10px]"></i>
                         Operator (Siswa)
                     </span>
                 @endif
 
-                <!-- Student Identity Display -->
+                <!-- Student Identity Display (read-only, no reset button) -->
                 @if(auth()->user()->isUser() && session()->has('student_identity'))
                     @php $student = session('student_identity'); @endphp
-                    <div class="hidden sm:flex items-center gap-1.5 bg-[#f2f4f6] border border-[#e2e8f0] px-3 py-1 rounded-md text-[11px] text-slate-700">
+                    <div class="hidden sm:flex items-center gap-1.5 bg-surface-low border border-[#e2e8f0] px-3 py-1 rounded-md text-[11px] text-slate-700">
                         <i class="fa-solid fa-user-tag text-slate-400 text-[10px]"></i>
                         <span class="font-bold text-slate-900">{{ $student['name'] }}</span>
                         <span class="text-slate-400">·</span>
-                        <span class="font-semibold text-[#0058be]">{{ $student['class'] }}</span>
+                        <span class="font-semibold text-secondary">{{ $student['class'] }}</span>
                     </div>
-                    <form action="{{ route('student-identity.reset') }}" method="POST">
-                        @csrf
-                        <button type="submit" title="Ganti Identitas"
-                                class="inline-flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-[#0058be] bg-[#f2f4f6] hover:bg-blue-50 border border-[#e2e8f0] hover:border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer">
-                            <i class="fa-solid fa-rotate text-[10px]"></i>
-                            Ganti Identitas
-                        </button>
-                    </form>
                 @endif
 
             </div>
         </header>
 
         <!-- CONTENT BODY -->
-        <main class="flex-1 overflow-y-auto p-6 bg-[#f7f9fb]">
+        <main class="flex-1 overflow-y-auto p-6 bg-surface">
 
             <!-- Flash Messages -->
             @if(session('success'))
                 <div class="alert-success mb-5">
-                    <i class="fa-solid fa-circle-check text-base flex-shrink-0 mt-0.5"></i>
+                    <i class="fa-solid fa-circle-check text-base shrink-0 mt-0.5"></i>
                     <span class="font-medium">{{ session('success') }}</span>
                 </div>
             @endif
             @if(session('error'))
                 <div class="alert-error mb-5">
-                    <i class="fa-solid fa-triangle-exclamation text-base flex-shrink-0 mt-0.5"></i>
+                    <i class="fa-solid fa-triangle-exclamation text-base shrink-0 mt-0.5"></i>
                     <span class="font-medium">{{ session('error') }}</span>
                 </div>
             @endif
             @if(session('info'))
                 <div class="alert-info mb-5">
-                    <i class="fa-solid fa-circle-info text-base flex-shrink-0 mt-0.5"></i>
+                    <i class="fa-solid fa-circle-info text-base shrink-0 mt-0.5"></i>
                     <span class="font-medium">{{ session('info') }}</span>
                 </div>
             @endif
@@ -245,8 +243,7 @@
 
 <!-- ================================================================
      STUDENT IDENTITY MODAL (Non-bypassable)
-     ================================================================ -->
-@if(auth()->check() && auth()->user()->isUser() && (!session()->has('student_identity') || !empty($require_student_identity_modal)))
+     ================================================================ -->@if(auth()->check() && auth()->user()->isUser() && (!session()->has('student_identity') || !empty($require_student_identity_modal)))
     <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div class="max-w-md w-full bg-white rounded-xl shadow-2xl border border-[#e2e8f0] overflow-hidden">
             <!-- Header -->
@@ -274,7 +271,7 @@
                 </div>
                 <div class="pt-1">
                     <button type="submit"
-                            class="w-full py-2.5 px-4 bg-[#0058be] hover:bg-[#004499] text-white font-bold text-sm rounded-lg shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
+                            class="w-full py-2.5 px-4 bg-secondary hover:bg-[#004499] text-white font-bold text-sm rounded-lg shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-play text-xs"></i>
                         Mulai Praktikum
                     </button>
@@ -287,5 +284,39 @@
     </div>
 @endif
 
+<script>
+// ============================================================
+// SIDEBAR TOGGLE (Collapsible)
+// ============================================================
+(function () {
+    const sidebar  = document.getElementById('main-sidebar');
+    const toggle   = document.getElementById('sidebar-toggle');
+    const STORAGE_KEY = 'wms_sidebar_collapsed';
+
+    // Restore saved state
+    const isCollapsed = localStorage.getItem(STORAGE_KEY) === '1';
+    if (isCollapsed) applySidebarState(true);
+
+    toggle?.addEventListener('click', function () {
+        const collapsed = sidebar.classList.contains('wms-sidebar-collapsed');
+        applySidebarState(!collapsed);
+        localStorage.setItem(STORAGE_KEY, !collapsed ? '1' : '0');
+    });
+
+    function applySidebarState(collapse) {
+        if (collapse) {
+            sidebar.classList.add('wms-sidebar-collapsed');
+            sidebar.style.width = '0px';
+            sidebar.style.overflow = 'hidden';
+            sidebar.style.borderRight = 'none';
+        } else {
+            sidebar.classList.remove('wms-sidebar-collapsed');
+            sidebar.style.width = '240px';
+            sidebar.style.overflow = '';
+            sidebar.style.borderRight = '';
+        }
+    }
+})();
+</script>
 </body>
 </html>

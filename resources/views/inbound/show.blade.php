@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Detail Inbound — ' . $inbound->No_Receiving)
-@section('page_heading', 'Detail Inbound — ' . $inbound->No_Receiving)
+@section('title', 'Detail Inbound - ' . $inbound->No_Receiving)
+@section('page_heading', 'Detail Inbound - ' . $inbound->No_Receiving)
 
 @section('content')
 <div class="space-y-5">

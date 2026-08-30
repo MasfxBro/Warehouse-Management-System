@@ -11,7 +11,7 @@
         @php $student = session('student_identity'); @endphp
         <div class="flex items-center justify-between bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-sm">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
                     <i class="fa-solid fa-graduation-cap text-sm"></i>
                 </div>
                 <div>
@@ -93,10 +93,10 @@
         <div class="stat-card">
             <div>
                 <p class="stat-card-label">Outbound Hari Ini</p>
-                <p class="stat-card-value text-[#0058be]">{{ number_format($outboundTodayCount) }}</p>
+                <p class="stat-card-value text-secondary">{{ number_format($outboundTodayCount) }}</p>
                 <p class="stat-card-sub">Transaksi keluar</p>
             </div>
-            <div class="stat-card-icon bg-blue-50 text-[#0058be]">
+            <div class="stat-card-icon bg-blue-50 text-secondary">
                 <i class="fa-solid fa-arrow-up-from-bracket text-base"></i>
             </div>
         </div>
@@ -115,7 +115,7 @@
                     <h3 class="wms-card-title">Warehouse Activity</h3>
                     <p class="text-xs text-slate-400 mt-0.5">Perbandingan barang masuk & keluar</p>
                 </div>
-                <div class="inline-flex rounded-lg border border-[#e2e8f0] bg-[#f7f9fb] p-0.5 gap-0.5">
+                <div class="inline-flex rounded-lg border border-[#e2e8f0] bg-surface p-0.5 gap-0.5">
                     @foreach([
                         'seminggu_ini' => 'Minggu Ini',
                         'seminggu'     => '7 Hari',
@@ -124,7 +124,7 @@
                     ] as $key => $label)
                         <a href="{{ route('dashboard', ['period' => $key]) }}"
                            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors
-                                  {{ $period === $key ? 'bg-white text-[#0058be] font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800' }}">
+                                  {{ $period === $key ? 'bg-white text-secondary font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800' }}">
                             {{ $label }}
                         </a>
                     @endforeach
@@ -141,7 +141,7 @@
                         Inbound (Masuk)
                     </div>
                     <div class="flex items-center gap-1.5 text-[11px] text-slate-500">
-                        <span class="w-3 h-3 rounded-sm bg-[#0058be] inline-block"></span>
+                        <span class="w-3 h-3 rounded-sm bg-secondary inline-block"></span>
                         Outbound (Keluar)
                     </div>
                 </div>
@@ -159,23 +159,23 @@
                         <span class="badge badge-success">Kosong</span>
                     @endif
                 </div>
-                <a href="{{ route('outbound.index') }}" class="text-[11px] text-[#0058be] hover:underline">
+                <a href="{{ route('outbound.index') }}" class="text-[11px] text-secondary hover:underline">
                     Lihat semua
                 </a>
             </div>
-            <div class="flex-1 overflow-y-auto divide-y divide-[#f2f4f6]">
+            <div class="flex-1 overflow-y-auto divide-y divide-surface-low">
                 @forelse($pendingOutbounds as $trx)
                     <a href="{{ route('outbound.picking-list', $trx->Outbound_ID) }}"
-                       class="flex items-start gap-3 px-4 py-3 hover:bg-[#f7f9fb] transition-colors group">
-                        <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5
-                            {{ $trx->priority === 'high' ? 'bg-[#ffdad6] text-[#93000a]' : ($trx->priority === 'normal' ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-[#d1fae5] text-[#065f46]') }}">
+                       class="flex items-start gap-3 px-4 py-3 hover:bg-surface transition-colors group">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5
+                            {{ $trx->priority === 'high' ? 'bg-error-container text-on-error-container' : ($trx->priority === 'normal' ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-[#d1fae5] text-[#065f46]') }}">
                             <i class="fa-solid fa-clipboard-list text-[11px]"></i>
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-[12px] font-semibold text-slate-800 font-mono truncate">{{ $trx->No_Shipping }}</p>
                             <p class="text-[11px] text-slate-500 truncate">{{ $trx->customer->Nama ?? '-' }}</p>
                         </div>
-                        <span class="badge badge-{{ $trx->priority }} flex-shrink-0 mt-0.5">{{ $trx->priorityLabel() }}</span>
+                        <span class="badge badge-{{ $trx->priority }} shrink-0 mt-0.5">{{ $trx->priorityLabel() }}</span>
                     </a>
                 @empty
                     <div class="px-4 py-8 text-center text-[11px] text-slate-400">
@@ -193,14 +193,14 @@
     <div class="wms-card overflow-hidden">
         <div class="wms-card-header">
             <div class="flex items-center gap-2.5">
-                <div class="w-7 h-7 rounded-lg bg-[#ffdad6] flex items-center justify-center">
-                    <i class="fa-solid fa-triangle-exclamation text-[#93000a] text-[11px]"></i>
+                <div class="w-7 h-7 rounded-lg bg-error-container flex items-center justify-center">
+                    <i class="fa-solid fa-triangle-exclamation text-on-error-container text-[11px]"></i>
                 </div>
                 <h3 class="wms-card-title">Critical Stock Alerts</h3>
                 <span class="badge badge-danger font-mono">{{ $lowStockCount }} item</span>
             </div>
             <a href="{{ route('inventory.kartu-stok.index') }}"
-               class="text-[11px] text-[#0058be] hover:underline flex items-center gap-1">
+               class="text-[11px] text-secondary hover:underline flex items-center gap-1">
                 View All Inventory
                 <i class="fa-solid fa-arrow-right text-[10px]"></i>
             </a>
@@ -224,12 +224,12 @@
                         @foreach($lowStockItems as $item)
                             @php $stok = $item->stok; @endphp
                             <tr>
-                                <td class="font-mono font-semibold text-[#0058be]">
+                                <td class="font-mono font-semibold text-secondary">
                                     {{ $item->SKU }}
                                 </td>
                                 <td class="font-medium text-slate-800">{{ $item->Nama }}</td>
                                 <td><span class="badge badge-neutral">{{ $item->Kategori }}</span></td>
-                                <td class="text-right font-mono font-bold text-[#93000a]">{{ number_format($stok) }}</td>
+                                <td class="text-right font-mono font-bold text-on-error-container">{{ number_format($stok) }}</td>
                                 <td class="text-right font-mono text-slate-500">{{ number_format($item->Min_Stok) }}</td>
                                 <td>
                                     @if($stok == 0)
@@ -246,7 +246,7 @@
                                 </td>
                                 <td>
                                     <a href="{{ route('inbound.create') }}"
-                                       class="text-[11px] text-[#0058be] hover:underline font-medium">
+                                       class="text-[11px] text-secondary hover:underline font-medium">
                                         + Inbound
                                     </a>
                                 </td>

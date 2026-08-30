@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Tambah Inbound')
-@section('page_heading', 'Inbound — Formulir Penerimaan Barang')
+@section('page_heading', 'Inbound - Formulir Penerimaan Barang')
 
 @section('content')
 <div class="space-y-5">

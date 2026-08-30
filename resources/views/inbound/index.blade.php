@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Transaksi Inbound')
-@section('page_heading', 'Inbound — Penerimaan Barang Masuk')
+@section('page_heading', 'Inbound - Penerimaan Barang Masuk')
 
 @section('content')
 <div class="space-y-5">
@@ -35,7 +35,7 @@
             <div class="relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] pointer-events-none"></i>
                 <input type="text" id="live-search" placeholder="Cari No. RSI / Supplier..."
-                       class="wms-input w-52 text-xs pl-8" style="height:2.25rem;">
+                       class="wms-input w-52 text-xs" style="height:2.25rem;padding-left:2rem">
             </div>
             {{-- Tambah --}}
             <a href="{{ route('inbound.create') }}" class="btn btn-primary btn-sm gap-1.5">

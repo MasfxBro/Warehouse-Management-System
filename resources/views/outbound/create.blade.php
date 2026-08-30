@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Buat Outbound')
-@section('page_heading', 'Outbound — Formulir Pengiriman Barang')
+@section('page_heading', 'Outbound - Formulir Pengiriman Barang')
 
 @section('content')
 <div class="space-y-5">

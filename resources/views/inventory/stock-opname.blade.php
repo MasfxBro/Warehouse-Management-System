@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Stock Opname')
-@section('page_heading', 'Inventory — Stock Opname')
+@section('page_heading', 'Inventory - Stock Opname')
 
 @section('content')
 <div class="space-y-5">

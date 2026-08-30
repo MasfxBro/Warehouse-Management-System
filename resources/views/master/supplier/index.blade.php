@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Data Supplier')
-@section('page_heading', 'Master Data — Directory Supplier')
+@section('page_heading', 'Master Data - Directory Supplier')
 
 @section('content')
 <div class="space-y-6">
@@ -30,14 +30,13 @@
 
         <form action="{{ route('master.supplier.index') }}" method="GET" class="flex items-center gap-2">
             <div class="search-group">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text"
                        name="search"
                        value="{{ $search }}"
                        placeholder="Cari nama / kontak / alamat..."
                        class="search-input" style="width:16rem;">
-                <button type="submit" class="search-btn">
-                    <i class="fa-solid fa-magnifying-glass"></i> Cari
-                </button>
+                <button type="submit" class="search-btn">Cari</button>
             </div>
             @if($search)
                 <a href="{{ route('master.supplier.index') }}"

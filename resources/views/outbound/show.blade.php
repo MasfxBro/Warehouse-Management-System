@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Detail Outbound — ' . $outbound->No_Shipping)
-@section('page_heading', 'Detail Outbound — ' . $outbound->No_Shipping)
+@section('title', 'Detail Outbound - ' . $outbound->No_Shipping)
+@section('page_heading', 'Detail Outbound - ' . $outbound->No_Shipping)
 
 @section('content')
 <div class="space-y-5">
@@ -25,7 +25,7 @@
                     @endif
                     <span class="badge badge-{{ $outbound->priority }}">{{ $outbound->priorityLabel() }}</span>
                 </div>
-                <h2 class="text-xl font-black font-mono text-[#0058be] tracking-tight">{{ $outbound->No_Shipping }}</h2>
+                <h2 class="text-xl font-black font-mono text-secondary tracking-tight">{{ $outbound->No_Shipping }}</h2>
                 <div class="text-sm text-slate-600 flex items-center gap-4 flex-wrap">
                     <span><i class="fa-regular fa-calendar text-slate-400 mr-1"></i>{{ $outbound->Tanggal->format('d F Y') }}</span>
                     <span><i class="fa-solid fa-user text-slate-400 mr-1"></i>{{ $outbound->customer->Nama ?? '-' }}</span>
@@ -36,7 +36,7 @@
             </div>
 
             {{-- CTA --}}
-            <div class="flex flex-col gap-2 flex-shrink-0">
+            <div class="flex flex-col gap-2 shrink-0">
                 @if(!$outbound->isComplete())
                     <a href="{{ route('outbound.picking-list', $outbound->Outbound_ID) }}"
                        class="btn btn-outline btn-lg gap-2 border-amber-300 text-amber-700 hover:bg-amber-50">
@@ -57,9 +57,9 @@
             </div>
         </div>
         @if($outbound->Catatan)
-            <div class="mt-4 pt-4 border-t border-[#f2f4f6]">
+            <div class="mt-4 pt-4 border-t border-surface-low">
                 <p class="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">Catatan</p>
-                <p class="text-sm text-slate-700 bg-[#f7f9fb] rounded-lg px-4 py-2.5">{{ $outbound->Catatan }}</p>
+                <p class="text-sm text-slate-700 bg-surface rounded-lg px-4 py-2.5">{{ $outbound->Catatan }}</p>
             </div>
         @endif
     </div>
@@ -88,7 +88,7 @@
     <div class="wms-card overflow-hidden">
         <div class="wms-card-header">
             <h3 class="wms-card-title flex items-center gap-2">
-                <i class="fa-solid fa-list text-[#0058be]"></i> Detail Barang Dikirim
+                <i class="fa-solid fa-list text-secondary"></i> Detail Barang Dikirim
             </h3>
             <span class="text-xs text-slate-400">{{ $outbound->outboundDetails->count() }} baris</span>
         </div>
@@ -103,20 +103,20 @@
                         @foreach($outbound->outboundDetails as $i => $detail)
                             <tr>
                                 <td class="font-mono text-slate-400">{{ $i + 1 }}</td>
-                                <td class="font-mono font-semibold text-[#0058be]">
+                                <td class="font-mono font-semibold text-secondary">
                                     <a href="{{ route('master.barang.show', $detail->SKU) }}" class="hover:underline">
                                         {{ $detail->SKU }}
                                     </a>
                                 </td>
                                 <td class="font-medium text-slate-900">{{ $detail->masterBarang->Nama ?? '-' }}</td>
                                 <td class="font-mono text-slate-600">{{ $detail->rackLocation->Kode_Rak ?? '-' }}</td>
-                                <td class="text-right font-mono font-bold text-[#93000a]">
+                                <td class="text-right font-mono font-bold text-on-error-container">
                                     -{{ number_format($detail->Qty) }}
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
-                    <tfoot class="bg-[#f7f9fb] border-t border-[#e2e8f0]">
+                    <tfoot class="bg-surface border-t border-[#e2e8f0]">
                         <tr>
                             <td colspan="4" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Total Qty Keluar</td>
                             <td class="px-4 py-3 text-right font-mono font-black text-slate-900">
