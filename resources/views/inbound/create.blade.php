@@ -106,8 +106,8 @@
 </div>
 
 <script>
-const masterBarangs  = @json($masterBarangs->map(fn($b) => ['sku'=>$b->SKU,'nama'=>$b->Nama,'kategori'=>$b->Kategori,'rack_id'=>$b->Rack_ID,'min_stok'=>$b->Min_Stok]));
-const rackLocations  = @json($rackLocations->map(fn($r) => ['id'=>$r->Rack_ID,'label'=>$r->Kode_Rak.' (Aisle '.$r->Aisle.', Lvl '.$r->Level.')']));
+const masterBarangs  = @json($masterBarangsJs);
+const rackLocations  = @json($rackLocationsJs);
 const kategoriList   = @json($kategoriList);
 const csrfToken      = '{{ csrf_token() }}';
 const supplierAjaxUrl = '{{ route("inbound.supplier.ajax") }}';

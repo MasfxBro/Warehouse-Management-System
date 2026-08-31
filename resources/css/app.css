@@ -338,6 +338,9 @@ body {
     z-index: 50;
     padding: 1rem;
 }
+.modal-overlay.hidden {
+    display: none !important;
+}
 .modal-box {
     background: #ffffff;
     border-radius: 0.75rem;

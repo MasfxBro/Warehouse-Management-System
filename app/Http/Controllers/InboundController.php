@@ -53,11 +53,28 @@ class InboundController extends Controller
             ->filter()
             ->values();
 
+        // Pre-mapped arrays untuk JS — disiapkan di controller supaya
+        // @json() di Blade tidak perlu arrow function (hindari ParseError)
+        $masterBarangsJs = $masterBarangs->map(fn($b) => [
+            'sku'      => $b->SKU,
+            'nama'     => $b->Nama,
+            'kategori' => $b->Kategori,
+            'rack_id'  => $b->Rack_ID,
+            'min_stok' => $b->Min_Stok,
+        ])->values()->all();
+
+        $rackLocationsJs = $rackLocations->map(fn($r) => [
+            'id'    => $r->Rack_ID,
+            'label' => $r->Kode_Rak . ' (Aisle ' . $r->Aisle . ', Lvl ' . $r->Level . ')',
+        ])->values()->all();
+
         return view('inbound.create', compact(
             'suppliers',
             'masterBarangs',
             'rackLocations',
-            'kategoriList'
+            'kategoriList',
+            'masterBarangsJs',
+            'rackLocationsJs'
         ));
     }
 
