@@ -124,10 +124,11 @@
                     <div class="bg-[#f2f4f6] p-3 rounded-lg text-[11px] font-mono text-slate-600 break-all">
                         {{ $qrString }}
                     </div>
-                    <button type="button" onclick="window.print()"
-                            class="btn btn-primary w-full justify-center gap-2">
+                    <a href="{{ route('master.barang.label-pdf', $item->SKU) }}"
+                       target="_blank"
+                       class="btn btn-primary w-full justify-center gap-2">
                         <i class="fa-solid fa-print"></i> Cetak Label QR
-                    </button>
+                    </a>
                 </div>
                 <script>
                     document.addEventListener("DOMContentLoaded", function () {

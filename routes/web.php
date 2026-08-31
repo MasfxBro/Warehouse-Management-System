@@ -52,9 +52,10 @@ Route::middleware(['auth', 'student.identity'])->group(function () {
         // Customer (Pure Read-Only)
         Route::get('/customer', [CustomerController::class, 'index'])->name('customer.index');
 
-        // Data Barang (Pure Read-Only + Detail & QR)
+        // Data Barang (Pure Read-Only + Detail, QR & Label PDF)
         Route::get('/barang', [MasterBarangController::class, 'index'])->name('barang.index');
         Route::get('/barang/{sku}', [MasterBarangController::class, 'show'])->name('barang.show');
+        Route::get('/barang/{sku}/label-pdf', [MasterBarangController::class, 'labelPdf'])->name('barang.label-pdf');
     });
 
     // Transaksi Inbound (Akses: Admin & Siswa)

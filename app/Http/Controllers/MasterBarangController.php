@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\MasterBarang;
 use App\Models\InboundDetail;
 use App\Models\OutboundDetail;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\Request;
 
 class MasterBarangController extends Controller
@@ -57,5 +60,41 @@ class MasterBarangController extends Controller
         $outboundHistory = OutboundDetail::with('outboundTransaction.customer')->where('SKU', $sku)->latest()->take(10)->get();
 
         return view('master.barang.show', compact('item', 'rackName', 'qrString', 'inboundHistory', 'outboundHistory'));
+    }
+
+    /**
+     * Generate dan stream PDF label QR untuk barang.
+     */
+    public function labelPdf($sku)
+    {
+        $item = MasterBarang::with(['rackLocation'])
+            ->where('SKU', $sku)
+            ->firstOrFail();
+
+        $rackName = $item->rackLocation
+            ? "{$item->rackLocation->Kode_Rak} (Lorong {$item->rackLocation->Aisle} - Level {$item->rackLocation->Level})"
+            : 'Belum Ditentukan';
+
+        $qrString = "{$item->SKU} - {$item->Nama} - {$rackName}";
+
+        // Generate QR sebagai base64 PNG — DomPDF tidak bisa render JS QR library
+        $qrCode = new QrCode(
+            data: $qrString,
+            size: 200,
+            margin: 10,
+        );
+        $writer  = new PngWriter();
+        $result  = $writer->write($qrCode);
+        $qrBase64 = base64_encode($result->getString());
+
+        $pdf = Pdf::loadView('master.barang.label-pdf', [
+            'item'     => $item,
+            'rackName' => $rackName,
+            'qrString' => $qrString,
+            'qrBase64' => $qrBase64,
+            'printedAt' => now()->format('d/m/Y H:i'),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream("label-{$item->SKU}.pdf");
     }
 }
