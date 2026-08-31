@@ -155,13 +155,13 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label for="Aisle" class="wms-label">Lorong (Aisle) <span class="text-red-500">*</span></label>
+                        <label for="Aisle" class="wms-label">Lorong <span class="text-red-500">*</span></label>
                         <input type="text" id="Aisle" name="Aisle" required
                                placeholder="Contoh: A1"
                                class="wms-input w-full">
                     </div>
                     <div>
-                        <label for="Level" class="wms-label">Tingkat (Level) <span class="text-red-500">*</span></label>
+                        <label for="Level" class="wms-label">Tingkat Rak <span class="text-red-500">*</span></label>
                         <input type="text" id="Level" name="Level" required
                                placeholder="Contoh: 01"
                                class="wms-input w-full">

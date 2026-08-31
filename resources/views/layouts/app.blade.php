@@ -252,7 +252,7 @@
                     <i class="fa-solid fa-graduation-cap text-2xl"></i>
                 </div>
                 <h2 class="text-lg font-bold tracking-tight">Form Identitas Siswa</h2>
-                <p class="text-[11px] text-slate-400 mt-1">Wajib diisi sebelum memulai sesi praktikum WMS</p>
+                <p class="text-[11px] text-slate-400 mt-1">Wajib diisi sebelum memulai pendataan dan pencatatan!</p>
             </div>
             <!-- Body -->
             <form action="{{ route('student-identity.store') }}" method="POST" class="p-6 space-y-4">
