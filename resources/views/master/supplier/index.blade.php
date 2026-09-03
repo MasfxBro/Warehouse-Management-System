@@ -88,7 +88,7 @@
                                     <td class="text-right">
                                         <button type="button"
                                                 onclick="openEditSupplier(
-                                                    {{ $supplier->Supplier_ID }},
+                                                    '{{ $supplier->Supplier_ID }}',
                                                     {{ json_encode($supplier->Nama) }},
                                                     {{ json_encode($supplier->No_Kontak ?? $supplier->Kontak ?? '') }},
                                                     {{ json_encode($supplier->Email ?? '') }},
