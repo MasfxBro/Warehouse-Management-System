@@ -36,12 +36,14 @@ class InboundSeeder extends Seeder
         $detailSeq        = 1;
 
         for ($i = 1; $i <= $transactionCount; $i++) {
-            // Buat header transaksi inbound
+            // Tanggal dibuat mundur agar tidak bentrok dengan tanggal hari ini
+            $tanggal = now()->subDays($transactionCount - $i + 1)->format('Y-m-d');
+            $dateKey = date('Ymd', strtotime($tanggal));
+
             $transaction = InboundTransaction::create([
-                'No_Receiving' => sprintf('RCV-2026-%04d', $i),
-                'Tanggal'      => now()->subDays(rand(1, 180))->format('Y-m-d'),
+                'No_Receiving' => sprintf('RSI-%s-%04d', $dateKey, $i),
+                'Tanggal'      => $tanggal,
                 'Supplier_ID'  => $supplierIds[($i - 1) % count($supplierIds)],
-                // Hanya operator dan manager yang memproses inbound (index 3–7 = operator, 1–2 = manager)
                 'User_ID'      => $userIds[($i % (count($userIds) - 1)) + 1],
             ]);
 

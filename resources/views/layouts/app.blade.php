@@ -101,12 +101,14 @@
             <!-- Inventory -->
             <p class="sidebar-section-label">Inventory</p>
 
-            @php $isKartuStok = request()->routeIs('inventory.kartu-stok.*'); @endphp
-            <a href="{{ route('inventory.kartu-stok.index') }}"
-               class="sidebar-link {{ $isKartuStok ? 'active' : '' }}">
-                <i class="fa-solid fa-rectangle-list {{ $isKartuStok ? 'text-secondary' : 'text-slate-400' }}"></i>
-                <span>Kartu Stok</span>
-            </a>
+            @if(auth()->user()->isAdmin())
+                @php $isKartuStok = request()->routeIs('inventory.kartu-stok.*'); @endphp
+                <a href="{{ route('inventory.kartu-stok.index') }}"
+                   class="sidebar-link {{ $isKartuStok ? 'active' : '' }}">
+                    <i class="fa-solid fa-rectangle-list {{ $isKartuStok ? 'text-secondary' : 'text-slate-400' }}"></i>
+                    <span>Kartu Stok</span>
+                </a>
+            @endif
 
             @php $isOpname = request()->routeIs('inventory.stock-opname.*'); @endphp
             <a href="{{ route('inventory.stock-opname.index') }}"
@@ -267,7 +269,11 @@
                 </div>
                 <div>
                     <label class="wms-label">NIS (Nomor Induk Siswa) <span class="text-red-500">*</span></label>
-                    <input type="text" name="nis" required placeholder="Contoh: 202612345" class="wms-input font-mono">
+                    <input type="text" name="nis" required placeholder="Contoh: 202612345"
+                           pattern="[0-9]+" inputmode="numeric"
+                           title="NIS harus berupa angka"
+                           class="wms-input font-mono">
+                    <p class="text-[10px] text-slate-400 mt-1">Hanya boleh diisi dengan angka.</p>
                 </div>
                 <div class="pt-1">
                     <button type="submit"

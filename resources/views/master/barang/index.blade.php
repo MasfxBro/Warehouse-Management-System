@@ -70,7 +70,10 @@
                     </thead>
                     <tbody>
                         @foreach($items as $item)
-                            @php $stok = $item->stok; $isSafe = $stok > $item->Min_Stok; @endphp
+                            @php
+                                $stok   = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+                                $isSafe = $stok > $item->Min_Stok;
+                            @endphp
                             <tr>
                                 <td class="font-mono font-semibold text-[#0058be]">{{ $item->SKU }}</td>
                                 <td class="font-medium text-slate-900">{{ $item->Nama }}</td>
@@ -80,7 +83,7 @@
                                 </td>
                                 <td class="text-right font-mono text-slate-500">{{ number_format($item->Min_Stok) }}</td>
                                 <td class="text-right font-mono text-slate-700">Rp {{ number_format($item->harga, 0, ',', '.') }}</td>
-                                <td class="text-right font-mono font-bold text-slate-900">Rp {{ number_format($item->nilai_barang, 0, ',', '.') }}</td>
+                                <td class="text-right font-mono font-bold text-slate-900">Rp {{ number_format($stok * $item->harga, 0, ',', '.') }}</td>
                                 <td>
                                     @if($isSafe)
                                         <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Aman</span>

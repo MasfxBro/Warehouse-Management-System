@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MasterBarang;
 use App\Models\RackLocation;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
@@ -9,30 +10,69 @@ use Illuminate\Http\Request;
 class RackLocationController extends Controller
 {
     /**
-     * Tampilkan daftar lokasi rak (Akses: Admin & Siswa).
+     * Tampilkan daftar lokasi rak.
      */
     public function index(Request $request)
     {
         $search = $request->query('search');
-
-        $query = RackLocation::with(['inboundDetails', 'outboundDetails']);
+        $query  = RackLocation::withSum('inboundDetails as inbound_qty', 'Qty')
+                               ->withSum('outboundDetails as outbound_qty', 'Qty');
 
         if ($search) {
-            $searchLower = strtolower($search);
-            $query->where(function ($q) use ($searchLower) {
-                $q->whereRaw("LOWER(\"Kode_Rak\") LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(\"Aisle\") LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(\"Level\") LIKE ?", ['%' . $searchLower . '%']);
+            $s = strtolower($search);
+            $query->where(function ($q) use ($s) {
+                $q->whereRaw("LOWER(\"Kode_Rak\") LIKE ?", ["%{$s}%"])
+                  ->orWhereRaw("LOWER(\"Aisle\") LIKE ?", ["%{$s}%"])
+                  ->orWhereRaw("LOWER(\"Level\") LIKE ?", ["%{$s}%"]);
             });
         }
 
         $racks = $query->paginate(15)->withQueryString();
-
         return view('master.rak.index', compact('racks', 'search'));
     }
 
     /**
-     * Simpan lokasi rak baru (Akses: HANYA Admin).
+     * Tampilkan halaman detail rak + daftar barang di rak tersebut.
+     */
+    public function show(string $id)
+    {
+        $rack    = RackLocation::findOrFail($id);
+        // Barang yang default rack-nya adalah rak ini
+        $barangs = MasterBarang::with('rackLocation')
+            ->where('Rack_ID', $rack->Rack_ID)
+            ->get();
+        // Rak lain untuk opsi pindah (kecuali rak ini sendiri)
+        $otherRacks = RackLocation::where('Rack_ID', '!=', $rack->Rack_ID)
+            ->orderBy('Kode_Rak')
+            ->get();
+
+        return view('master.rak.show', compact('rack', 'barangs', 'otherRacks'));
+    }
+
+    /**
+     * Pindahkan semua/satu barang ke rak lain (Admin only).
+     */
+    public function pindahBarang(Request $request, string $id)
+    {
+        $request->validate([
+            'sku'        => 'required|exists:master_barang,SKU',
+            'new_rack_id' => 'required|exists:rack_locations,Rack_ID',
+        ]);
+
+        $barang = MasterBarang::findOrFail($request->sku);
+        $oldRak = $barang->rackLocation->Kode_Rak ?? '-';
+        $newRak = RackLocation::findOrFail($request->new_rack_id);
+
+        $barang->update(['Rack_ID' => $request->new_rack_id]);
+
+        ActivityLog::record("Barang [{$barang->SKU} - {$barang->Nama}] dipindah dari rak [{$oldRak}] ke rak [{$newRak->Kode_Rak}].");
+
+        return redirect()->route('master.rak.show', $id)
+            ->with('success', "Barang {$barang->Nama} berhasil dipindahkan ke rak {$newRak->Kode_Rak}.");
+    }
+
+    /**
+     * Simpan lokasi rak baru (Admin only).
      */
     public function store(Request $request)
     {
@@ -44,49 +84,51 @@ class RackLocationController extends Controller
         ]);
 
         $rack = RackLocation::create($validated);
+        ActivityLog::record("Guru/Admin membuat Lokasi Rak baru: {$rack->Kode_Rak}");
 
-        ActivityLog::record("Guru/Admin membuat Lokasi Rak baru: {$rack->Kode_Rak} (Lorong {$rack->Aisle}, Level {$rack->Level}, Kapasitas {$rack->Kapasitas})");
-
-        return redirect()->route('master.rak.index')->with('success', "Lokasi Rak {$rack->Kode_Rak} berhasil ditambahkan!");
+        return redirect()->route('master.rak.index')
+            ->with('success', "Lokasi Rak {$rack->Kode_Rak} berhasil ditambahkan!");
     }
 
     /**
-     * Update data lokasi rak (Akses: HANYA Admin).
+     * Update lokasi rak (Admin only).
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, string $id)
     {
         $rack = RackLocation::findOrFail($id);
 
         $validated = $request->validate([
-            'Kode_Rak'  => 'required|string|max:50|unique:rack_locations,Kode_Rak,' . $rack->Rack_ID . ',Rack_ID',
+            'Kode_Rak'  => "required|string|max:50|unique:rack_locations,Kode_Rak,{$rack->Rack_ID},Rack_ID",
             'Aisle'     => 'required|string|max:20',
             'Level'     => 'required|string|max:20',
             'Kapasitas' => 'required|integer|min:1',
         ]);
 
         $rack->update($validated);
-
         ActivityLog::record("Guru/Admin memperbarui Lokasi Rak: {$rack->Kode_Rak}");
 
-        return redirect()->route('master.rak.index')->with('success', "Data Lokasi Rak {$rack->Kode_Rak} berhasil diperbarui!");
+        return redirect()->route('master.rak.show', $id)
+            ->with('success', "Data Lokasi Rak {$rack->Kode_Rak} berhasil diperbarui!");
     }
 
     /**
-     * Hapus lokasi rak (Akses: HANYA Admin).
+     * Hapus lokasi rak (Admin only) — hanya bisa jika tidak ada barang.
      */
-    public function destroy($id)
+    public function destroy(string $id)
     {
         $rack = RackLocation::findOrFail($id);
 
-        if ($rack->masterBarang()->count() > 0 || $rack->inboundDetails()->count() > 0) {
-            return redirect()->route('master.rak.index')->with('error', "Lokasi Rak {$rack->Kode_Rak} tidak dapat dihapus karena sedang digunakan oleh data barang/transaksi.");
+        $jumlahBarang = MasterBarang::where('Rack_ID', $rack->Rack_ID)->count();
+        if ($jumlahBarang > 0) {
+            return redirect()->route('master.rak.show', $id)
+                ->with('error', "Rak {$rack->Kode_Rak} tidak dapat dihapus karena masih ada {$jumlahBarang} barang. Pindahkan semua barang terlebih dahulu.");
         }
 
         $kode = $rack->Kode_Rak;
         $rack->delete();
-
         ActivityLog::record("Guru/Admin menghapus Lokasi Rak: {$kode}");
 
-        return redirect()->route('master.rak.index')->with('success', "Lokasi Rak {$kode} berhasil dihapus!");
+        return redirect()->route('master.rak.index')
+            ->with('success', "Lokasi Rak {$kode} berhasil dihapus!");
     }
 }

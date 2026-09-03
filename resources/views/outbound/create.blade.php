@@ -71,9 +71,9 @@
     </div>
 
     {{-- Submit --}}
-    <div class="flex items-center justify-end gap-3">
-        <a href="{{ route('outbound.index') }}" class="btn btn-outline">Batal</a>
-        <button type="submit" class="btn btn-primary btn-lg gap-2">
+    <div class="flex items-center justify-end gap-8 pt-2">
+        <a href="{{ route('outbound.index') }}" class="btn btn-outline px-8">Batal</a>
+        <button type="submit" class="btn btn-primary btn-lg gap-2 px-10">
             <i class="fa-solid fa-floppy-disk"></i> Buat Outbound & Picking List
         </button>
     </div>
@@ -112,9 +112,9 @@
 </div>
 
 <script>
-const barangs = @json($barangs->map(fn($b)=>['sku'=>$b->SKU,'nama'=>$b->Nama,'stok'=>$b->stok,'rack_id'=>$b->Rack_ID,'kode_rak'=>$b->rackLocation?->Kode_Rak??'-']));
+const barangs = @json($barangsJs);
 const csrfToken = '{{ csrf_token() }}';
-const customerAjaxUrl = '{{ route('outbound.customer.ajax') }}';
+const customerAjaxUrl = "{{ route('outbound.customer.ajax') }}";
 let itemCount = 0;
 
 function buildBarangOptions(){return '<option value="">— Pilih Barang —</option>'+barangs.map(b=>`<option value="${b.sku}" data-stok="${b.stok}">${b.sku} — ${b.nama} (Stok: ${b.stok})</option>`).join('');}

@@ -26,7 +26,7 @@
                         <p class="text-[11px] font-bold uppercase tracking-widest text-slate-400 font-mono">{{ $item->SKU }}</p>
                         <h2 class="text-xl font-bold text-slate-900 mt-1">{{ $item->Nama }}</h2>
                     </div>
-                    @php $isSafe = $item->stok > $item->Min_Stok; @endphp
+                    @php $isSafe = $item->computed_stok > $item->Min_Stok; @endphp
                     @if($isSafe)
                         <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Aman</span>
                     @else
@@ -36,12 +36,12 @@
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     @foreach([
-                        ['Kategori',        $item->Kategori,                                         false],
-                        ['Total Stok',      number_format($item->stok) . ' pcs',                    true],
-                        ['Min. Stok',       number_format($item->Min_Stok) . ' pcs',                true],
-                        ['Harga Satuan',    'Rp ' . number_format($item->harga, 0, ',', '.'),        true],
-                        ['Total Nilai',     'Rp ' . number_format($item->nilai_barang, 0, ',', '.'), true],
-                        ['Lokasi Rak',      $rackName,                                               true],
+                        ['Kategori',        $item->Kategori,                                                                              false],
+                        ['Total Stok',      number_format($item->computed_stok) . ' pcs',                                               true],
+                        ['Min. Stok',       number_format($item->Min_Stok) . ' pcs',                                                    true],
+                        ['Harga Satuan',    'Rp ' . number_format($item->harga, 0, ',', '.'),                                            true],
+                        ['Total Nilai',     'Rp ' . number_format($item->computed_stok * $item->harga, 0, ',', '.'),                     true],
+                        ['Lokasi Rak',      $rackName,                                                                                   true],
                     ] as [$label, $val, $mono])
                         <div class="p-3 rounded-lg bg-[#f7f9fb] border border-[#eceef0]">
                             <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">{{ $label }}</p>
@@ -56,9 +56,17 @@
 
                 {{-- Inbound --}}
                 <div class="wms-card p-5">
-                    <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
-                        <i class="fa-solid fa-arrow-down-to-bracket text-[#10b981]"></i> Riwayat Inbound
-                    </h3>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-down text-[#10b981]"></i> Riwayat Inbound
+                        </h3>
+                        @if(auth()->user()->isAdmin())
+                        <a href="{{ route('inventory.kartu-stok.detail', $item->SKU) }}"
+                           class="text-[10px] text-secondary hover:underline flex items-center gap-1">
+                            Lihat semua <i class="fa-solid fa-arrow-right text-[9px]"></i>
+                        </a>
+                        @endif
+                    </div>
                     @if($inboundHistory->count() > 0)
                         <div class="space-y-2">
                             @foreach($inboundHistory as $hist)
@@ -81,9 +89,17 @@
 
                 {{-- Outbound --}}
                 <div class="wms-card p-5">
-                    <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
-                        <i class="fa-solid fa-arrow-up-from-bracket text-[#0058be]"></i> Riwayat Outbound
-                    </h3>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-up-from-bracket text-[#0058be]"></i> Riwayat Outbound
+                        </h3>
+                        @if(auth()->user()->isAdmin())
+                        <a href="{{ route('inventory.kartu-stok.detail', $item->SKU) }}"
+                           class="text-[10px] text-secondary hover:underline flex items-center gap-1">
+                            Lihat semua <i class="fa-solid fa-arrow-right text-[9px]"></i>
+                        </a>
+                        @endif
+                    </div>
                     @if($outboundHistory->count() > 0)
                         <div class="space-y-2">
                             @foreach($outboundHistory as $hist)

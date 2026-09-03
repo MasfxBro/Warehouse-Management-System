@@ -15,11 +15,12 @@ class StudentIdentityController extends Controller
         $validated = $request->validate([
             'name'  => 'required|string|max:255',
             'class' => 'required|string|max:100',
-            'nis'   => 'required|string|max:50',
+            'nis'   => 'required|digits_between:1,20',
         ], [
             'name.required'  => 'Nama Lengkap wajib diisi.',
             'class.required' => 'Kelas wajib diisi.',
             'nis.required'   => 'NIS wajib diisi.',
+            'nis.digits_between' => 'NIS harus berupa angka.',
         ]);
 
         $identity = [
@@ -29,6 +30,7 @@ class StudentIdentityController extends Controller
         ];
 
         session(['student_identity' => $identity]);
+        session()->save(); // Paksa tulis session sebelum redirect
 
         ActivityLog::record("Siswa Login & Isi Identitas: {$identity['name']} ({$identity['class']} / NIS: {$identity['nis']})");
 

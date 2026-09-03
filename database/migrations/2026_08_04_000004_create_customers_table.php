@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('customers', function (Blueprint $table) {
-            $table->id('Customer_ID');
+            $table->uuid('Customer_ID')->primary()->comment('UUID primary key');
             $table->string('Nama', 255)->comment('Nama customer / perusahaan');
             $table->string('Kontak', 255)->nullable()->comment('Kontak gabungan / ringkas');
             $table->string('No_Kontak', 100)->nullable()->comment('Nomor telepon kontak');

@@ -42,11 +42,13 @@ class OutboundSeeder extends Seeder
             $isComplete = $i <= (int) ($transactionCount * 0.7);
             $totalQty   = rand(5, 60);
             $priority   = $totalQty > 50 ? 'high' : ($totalQty > 10 ? 'normal' : 'decent');
+            $tanggal    = now()->subDays($transactionCount - $i + 1)->format('Y-m-d');
+            $dateKey    = date('Ymd', strtotime($tanggal));
 
             // Buat header transaksi outbound
             $transaction = OutboundTransaction::create([
-                'No_Shipping'    => sprintf('SHP-2026-%04d', $i),
-                'Tanggal'        => now()->subDays(rand(1, 120))->format('Y-m-d'),
+                'No_Shipping'    => sprintf('SJ-%s-%04d', $dateKey, $i),
+                'Tanggal'        => $tanggal,
                 'Customer_ID'    => $customerIds[($i - 1) % count($customerIds)],
                 'User_ID'        => $userIds[($i % count($userIds))],
                 'picking_status' => $isComplete ? 'complete' : 'not_complete',

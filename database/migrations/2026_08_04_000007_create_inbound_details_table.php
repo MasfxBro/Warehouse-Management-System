@@ -14,9 +14,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('inbound_details', function (Blueprint $table) {
-            $table->id('Detail_ID');
+            $table->uuid('Detail_ID')->primary()->comment('UUID primary key');
 
-            $table->unsignedBigInteger('Inbound_ID')->comment('Referensi ke transaksi inbound header');
+            $table->uuid('Inbound_ID')->comment('Referensi ke transaksi inbound header');
             $table->foreign('Inbound_ID')
                   ->references('Inbound_ID')
                   ->on('inbound_transactions')
@@ -30,7 +30,7 @@ return new class extends Migration
                   ->onDelete('restrict')
                   ->onUpdate('cascade');
 
-            $table->unsignedBigInteger('Rack_ID')->comment('Rak tujuan penempatan barang');
+            $table->uuid('Rack_ID')->comment('Rak tujuan penempatan barang');
             $table->foreign('Rack_ID')
                   ->references('Rack_ID')
                   ->on('rack_locations')

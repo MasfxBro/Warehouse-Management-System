@@ -42,7 +42,15 @@ class InboundController extends Controller
     public function create()
     {
         $suppliers     = Supplier::orderBy('Nama')->get();
-        $masterBarangs = MasterBarang::orderBy('Nama')->get();
+        $masterBarangs = MasterBarang::with('rackLocation')
+            ->withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty')
+            ->orderBy('Nama')
+            ->get()
+            ->map(function ($b) {
+                $b->computed_stok = max(0, (int)($b->inbound_qty ?? 0) - (int)($b->outbound_qty ?? 0));
+                return $b;
+            });
         $rackLocations = RackLocation::orderBy('Kode_Rak')->get();
 
         // Kategori unik yang sudah ada (untuk SKU Prefix Engine JS)
@@ -55,18 +63,22 @@ class InboundController extends Controller
 
         // Pre-mapped arrays untuk JS — disiapkan di controller supaya
         // @json() di Blade tidak perlu arrow function (hindari ParseError)
-        $masterBarangsJs = $masterBarangs->map(fn($b) => [
-            'sku'      => $b->SKU,
-            'nama'     => $b->Nama,
-            'kategori' => $b->Kategori,
-            'rack_id'  => $b->Rack_ID,
-            'min_stok' => $b->Min_Stok,
-        ])->values()->all();
+        $masterBarangsJs = $masterBarangs->map(function ($b) {
+            return [
+                'sku'      => $b->SKU,
+                'nama'     => $b->Nama,
+                'kategori' => $b->Kategori,
+                'rack_id'  => $b->Rack_ID,
+                'min_stok' => $b->Min_Stok,
+            ];
+        })->values()->all();
 
-        $rackLocationsJs = $rackLocations->map(fn($r) => [
-            'id'    => $r->Rack_ID,
-            'label' => $r->Kode_Rak . ' (Aisle ' . $r->Aisle . ', Lvl ' . $r->Level . ')',
-        ])->values()->all();
+        $rackLocationsJs = $rackLocations->map(function ($r) {
+            return [
+                'id'    => $r->Rack_ID,
+                'label' => $r->Kode_Rak . ' (Aisle ' . $r->Aisle . ', Lvl ' . $r->Level . ')',
+            ];
+        })->values()->all();
 
         return view('inbound.create', compact(
             'suppliers',
@@ -164,6 +176,8 @@ class InboundController extends Controller
 
             ActivityLog::record("Transaksi Inbound baru dibuat dengan No. Resi [{$noReceiving}] oleh [{$this->operatorLabel()}].");
 
+            session()->save(); // Paksa tulis session sebelum redirect
+
             return redirect()->route('inbound.index')
                 ->with('success', "Transaksi Inbound {$noReceiving} berhasil disimpan.");
 
@@ -177,7 +191,7 @@ class InboundController extends Controller
     // SHOW — Detail Inbound
     // =========================================================
 
-    public function show(int $id)
+    public function show(string $id)
     {
         $inbound = InboundTransaction::with([
             'supplier',

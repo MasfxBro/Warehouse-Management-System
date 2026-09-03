@@ -20,7 +20,9 @@ class MasterBarangController extends Controller
         $search   = $request->query('search');
         $kategori = $request->query('kategori');
 
-        $query = MasterBarang::with(['rackLocation', 'inboundDetails', 'outboundDetails']);
+        $query = MasterBarang::with(['rackLocation'])
+            ->withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty');
 
         if ($search) {
             $searchLower = strtolower($search);
@@ -46,18 +48,33 @@ class MasterBarangController extends Controller
      */
     public function show($sku)
     {
-        $item = MasterBarang::with(['rackLocation', 'inboundDetails.inboundTransaction.supplier', 'outboundDetails.outboundTransaction.customer'])
+        $item = MasterBarang::with(['rackLocation'])
+            ->withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty')
             ->where('SKU', $sku)
             ->firstOrFail();
 
-        $rackName = $item->rackLocation ? "{$item->rackLocation->Kode_Rak} (Lorong {$item->rackLocation->Aisle} - Level {$item->rackLocation->Level})" : 'Belum Ditentukan';
-        
-        // Payload string QR Barcode: [Kode SKU] - [Nama Barang] - [Lokasi Rak]
+        // Hitung stok dari sum (hindari N+1 accessor query)
+        $item->computed_stok = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+
+        $rackName = $item->rackLocation
+            ? "{$item->rackLocation->Kode_Rak} (Lorong {$item->rackLocation->Aisle} - Level {$item->rackLocation->Level})"
+            : 'Belum Ditentukan';
+
+        // Payload string QR Barcode
         $qrString = "{$item->SKU} - {$item->Nama} - {$rackName}";
 
-        // Histori Inbound & Outbound per-barang
-        $inboundHistory  = InboundDetail::with('inboundTransaction.supplier')->where('SKU', $sku)->latest()->take(10)->get();
-        $outboundHistory = OutboundDetail::with('outboundTransaction.customer')->where('SKU', $sku)->latest()->take(10)->get();
+        // Histori Inbound & Outbound per-barang — hanya 2 terbaru untuk tampilan ringkas
+        $inboundHistory  = InboundDetail::with('inboundTransaction.supplier')
+            ->where('SKU', $sku)
+            ->orderByDesc('created_at')
+            ->take(2)
+            ->get();
+        $outboundHistory = OutboundDetail::with('outboundTransaction.customer')
+            ->where('SKU', $sku)
+            ->orderByDesc('created_at')
+            ->take(2)
+            ->get();
 
         return view('master.barang.show', compact('item', 'rackName', 'qrString', 'inboundHistory', 'outboundHistory'));
     }

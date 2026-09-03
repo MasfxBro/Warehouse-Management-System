@@ -17,18 +17,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('outbound_details', function (Blueprint $table) {
-            // Primary Key — auto increment
-            $table->id('Detail_ID');
+            $table->uuid('Detail_ID')->primary()->comment('UUID primary key');
 
-            // FK ke outbound_transactions (header)
-            $table->unsignedBigInteger('Outbound_ID')->comment('Referensi ke transaksi outbound header');
+            $table->uuid('Outbound_ID')->comment('Referensi ke transaksi outbound header');
             $table->foreign('Outbound_ID')
                   ->references('Outbound_ID')
                   ->on('outbound_transactions')
-                  ->onDelete('cascade')   // detail ikut terhapus jika header dihapus
+                  ->onDelete('cascade')
                   ->onUpdate('cascade');
 
-            // FK ke master_barang — SKU adalah string PK
             $table->string('SKU', 50)->comment('Kode barang yang dikirim');
             $table->foreign('SKU')
                   ->references('SKU')
@@ -36,8 +33,7 @@ return new class extends Migration
                   ->onDelete('restrict')
                   ->onUpdate('cascade');
 
-            // FK ke rack_locations — rak sumber pengambilan barang
-            $table->unsignedBigInteger('Rack_ID')->comment('Rak sumber pengambilan barang untuk dikirim');
+            $table->uuid('Rack_ID')->comment('Rak sumber pengambilan barang untuk dikirim');
             $table->foreign('Rack_ID')
                   ->references('Rack_ID')
                   ->on('rack_locations')

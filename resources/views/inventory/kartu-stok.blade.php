@@ -30,8 +30,11 @@
                         <th>Status</th><th class="text-right">Aksi</th>
                     </tr></thead>
                     <tbody>
-                        @foreach($items as $item)
-                            @php $stok = $item->stok; $aman = $stok > $item->Min_Stok; @endphp
+        @foreach($items as $item)
+                            @php
+                                $stok = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+                                $aman = $stok > $item->Min_Stok;
+                            @endphp
                             <tr class="stok-row"
                                 data-search="{{ strtolower($item->SKU . ' ' . $item->Nama . ' ' . $item->Kategori) }}">
                                 <td class="font-mono font-semibold text-[#0058be]">{{ $item->SKU }}</td>
@@ -65,6 +68,9 @@
                 </div>
             @endif
         </div>
+        @if($items->hasPages())
+            <div class="p-4 border-t border-[#e2e8f0] bg-surface">{{ $items->links() }}</div>
+        @endif
     </div>
 
 </div>

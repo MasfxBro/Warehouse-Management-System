@@ -15,7 +15,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_opnames', function (Blueprint $table) {
-            $table->id('Opname_ID');
+            $table->uuid('Opname_ID')->primary()->comment('UUID primary key');
 
             // FK ke master_barang (SKU)
             $table->string('SKU', 50);

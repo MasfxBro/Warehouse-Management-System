@@ -10,7 +10,7 @@
     <div class="wms-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
             <h2 class="wms-card-title flex items-center gap-2">
-                <i class="fa-solid fa-arrow-down-to-bracket text-[#10b981]"></i>
+                <i class="fa-solid fa-arrow-down text-[#10b981]"></i>
                 Riwayat Transaksi Inbound
             </h2>
             <p class="page-subtitle">Seluruh penerimaan barang dari supplier tercatat di sini.</p>
@@ -19,7 +19,7 @@
             {{-- Filter Supplier --}}
             <form action="{{ route('inbound.index') }}" method="GET" id="filter-form" class="flex items-center gap-2">
                 <select name="supplier_id" onchange="document.getElementById('filter-form').submit()"
-                        class="wms-select w-auto text-xs">
+                        class="wms-select w-auto text-xs" style="height:2.25rem;padding-top:0;padding-bottom:0;">
                     <option value="">Semua Supplier</option>
                     @foreach($suppliers as $s)
                         <option value="{{ $s->Supplier_ID }}" {{ request('supplier_id') == $s->Supplier_ID ? 'selected' : '' }}>

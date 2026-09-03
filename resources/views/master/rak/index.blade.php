@@ -72,9 +72,13 @@
                                     Lorong {{ $rack->Aisle }} (Level {{ $rack->Level }})
                                 </td>
                                 <td class="font-mono text-slate-700">{{ number_format($rack->Kapasitas) }} unit</td>
-                                <td class="font-mono font-bold text-slate-900">{{ number_format($rack->kapasitas_terpakai) }} unit</td>
+                                <td class="font-mono font-bold text-slate-900">{{ number_format(max(0, (int)($rack->inbound_qty ?? 0) - (int)($rack->outbound_qty ?? 0))) }} unit</td>
                                 <td>
-                                    @php $status = $rack->status_kapasitas; @endphp
+                                    @php
+                                        $terpakai = max(0, (int)($rack->inbound_qty ?? 0) - (int)($rack->outbound_qty ?? 0));
+                                        $ratio    = $rack->Kapasitas > 0 ? $terpakai / $rack->Kapasitas : 0;
+                                        $status   = $ratio >= 1.0 ? 'Penuh' : ($ratio >= 0.8 ? 'Hampir Penuh' : 'Tersedia');
+                                    @endphp
                                     @if($status === 'Penuh')
                                         <span class="badge badge-danger">
                                             <i class="fa-solid fa-circle-xmark"></i> Penuh
@@ -91,19 +95,10 @@
                                 </td>
                                 @if(auth()->user()->isAdmin())
                                     <td class="text-right space-x-1">
-                                        <button type="button"
-                                                onclick="openEditModal({{ json_encode($rack) }})"
-                                                class="btn btn-outline btn-sm gap-1.5">
-                                            <i class="fa-solid fa-pen-to-square"></i> Edit
-                                        </button>
-                                        <form action="{{ route('master.rak.destroy', $rack->Rack_ID) }}" method="POST" class="inline"
-                                              onsubmit="return confirm('Apakah Anda yakin ingin menghapus rak {{ $rack->Kode_Rak }}?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-danger btn-sm gap-1.5">
-                                                <i class="fa-solid fa-trash"></i> Hapus
-                                            </button>
-                                        </form>
+                                        <a href="{{ route('master.rak.show', $rack->Rack_ID) }}"
+                                           class="btn btn-outline btn-sm gap-1.5">
+                                            <i class="fa-solid fa-eye"></i> Detail
+                                        </a>
                                     </td>
                                 @endif
                             </tr>
@@ -126,6 +121,41 @@
     </div>
 
 </div>
+
+{{-- Custom Confirm Modal Hapus Rak --}}
+@if(auth()->user()->isAdmin())
+<div id="modal-confirm-delete-rak"
+     class="fixed inset-0 bg-black/50 backdrop-blur-sm items-center justify-center z-[60] hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full border border-[#e2e8f0] overflow-hidden">
+        <div class="bg-on-error-container px-6 py-5 text-white text-center">
+            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mx-auto mb-3">
+                <i class="fa-solid fa-trash text-2xl"></i>
+            </div>
+            <h3 class="text-base font-bold">Konfirmasi Hapus Rak</h3>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-slate-700 text-center">
+                Apakah Anda yakin ingin menghapus rak
+                <strong id="delete-rak-kode" class="font-mono text-on-error-container"></strong>?
+            </p>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-800 flex items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation shrink-0 mt-0.5"></i>
+                <span>Pastikan semua barang di rak ini sudah dipindahkan sebelum menghapus.</span>
+            </div>
+            <div class="flex gap-3 pt-1">
+                <button type="button" onclick="closeConfirmDeleteRak()"
+                        class="btn btn-outline flex-1">
+                    Batal
+                </button>
+                <button type="button" id="btn-confirm-delete-rak"
+                        class="btn btn-danger flex-1 gap-1.5">
+                    <i class="fa-solid fa-trash"></i> Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 {{-- ADMIN ADD / EDIT RACK MODAL --}}
 @if(auth()->user()->isAdmin())
@@ -189,6 +219,30 @@
     </div>
 
     <script>
+        let _deleteRakId = null;
+
+        function confirmDeleteRak(id, kode) {
+            _deleteRakId = id;
+            document.getElementById('delete-rak-kode').textContent = kode;
+            const m = document.getElementById('modal-confirm-delete-rak');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+        function closeConfirmDeleteRak() {
+            const m = document.getElementById('modal-confirm-delete-rak');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+            _deleteRakId = null;
+        }
+        document.getElementById('btn-confirm-delete-rak')?.addEventListener('click', function () {
+            if (_deleteRakId) {
+                document.getElementById('del-rack-' + _deleteRakId)?.submit();
+            }
+        });
+        document.getElementById('modal-confirm-delete-rak')?.addEventListener('click', function (e) {
+            if (e.target === this) closeConfirmDeleteRak();
+        });
+
         function openAddModal() {
             document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-plus mr-1.5"></i> Tambah Lokasi Rak';
             document.getElementById('rackForm').action = "{{ route('master.rak.store') }}";

@@ -17,27 +17,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('outbound_transactions', function (Blueprint $table) {
-            // Primary Key — auto increment
-            $table->id('Outbound_ID');
-
-            // Nomor dokumen shipping (misal: SHP-2026-0001) — harus unik
+            $table->uuid('Outbound_ID')->primary()->comment('UUID primary key');
             $table->string('No_Shipping', 100)->unique()->comment('Nomor dokumen pengiriman barang, harus unik');
-
-            // Tanggal pengiriman
             $table->date('Tanggal')->comment('Tanggal pengiriman barang ke customer');
-
-            // FK ke customers
-            $table->unsignedBigInteger('Customer_ID')->comment('Customer penerima barang');
+            $table->uuid('Customer_ID')->comment('Customer penerima barang');
             $table->foreign('Customer_ID')
                   ->references('Customer_ID')
                   ->on('customers')
                   ->onDelete('restrict')
                   ->onUpdate('cascade');
-
-            // Nomor surat jalan fisik — bisa nullable jika belum diterbitkan
             $table->string('No_Surat_Jalan', 100)->nullable()->comment('Nomor surat jalan fisik yang menyertai pengiriman');
-
-            // FK ke users — operator yang memproses pengiriman
             $table->unsignedBigInteger('User_ID')->comment('User/operator yang memproses pengiriman');
             $table->foreign('User_ID')
                   ->references('id')

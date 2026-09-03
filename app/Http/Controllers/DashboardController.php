@@ -20,15 +20,21 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         // --- Stat Cards (cache 2 menit) ---
-        // Seluruh master barang dengan relasi eager-loaded sekali saja
         $stats = Cache::remember('dashboard_stats', 120, function () {
-            $items = MasterBarang::with(['inboundDetails', 'outboundDetails'])->get();
+            // withSum menghindari N+1 — 3 query total, bukan 2×N query
+            $items = MasterBarang::withSum('inboundDetails as inbound_qty', 'Qty')
+                ->withSum('outboundDetails as outbound_qty', 'Qty')
+                ->get()
+                ->map(function ($item) {
+                    $item->computed_stok = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+                    return $item;
+                });
 
             return [
                 'totalSku'      => $items->count(),
-                'totalStok'     => $items->sum(fn($item) => $item->stok),
-                'nilaiGudang'   => $items->sum(fn($item) => $item->nilai_barang),
-                'lowStockItems' => $items->filter(fn($item) => $item->stok <= $item->Min_Stok)->values(),
+                'totalStok'     => $items->sum('computed_stok'),
+                'nilaiGudang'   => $items->sum(fn($item) => $item->computed_stok * $item->harga),
+                'lowStockItems' => $items->filter(fn($item) => $item->computed_stok <= $item->Min_Stok)->values(),
             ];
         });
 

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('activity_logs', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary()->comment('UUID primary key');
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('operator_name');
             $table->text('action');

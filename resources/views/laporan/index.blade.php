@@ -38,8 +38,8 @@
         {{-- Inbound --}}
         <div class="wms-card p-6 flex flex-col gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                    <i class="fa-solid fa-arrow-down-to-bracket text-[#10b981] text-lg"></i>
+                <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-arrow-down text-[#10b981] text-lg"></i>
                 </div>
                 <div>
                     <h3 class="wms-card-title">Laporan Inbound</h3>

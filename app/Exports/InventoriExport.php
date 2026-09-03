@@ -19,7 +19,11 @@ class InventoriExport
 {
     public function download(): string
     {
-        $items = MasterBarang::with('rackLocation')->get();
+        // withSum menghindari N+1 query (1 query, bukan 2×N)
+        $items = MasterBarang::with('rackLocation')
+            ->withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty')
+            ->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet       = $spreadsheet->getActiveSheet();
@@ -48,7 +52,8 @@ class InventoriExport
         // --- Data Rows ---
         $row = 2;
         foreach ($items as $item) {
-            $stok   = $item->stok;
+            $stok   = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+            $nilai  = $stok * $item->harga;
             $status = $stok > $item->Min_Stok ? 'Aman' : 'Reorder';
 
             $sheet->setCellValue("A{$row}", $item->SKU);
@@ -56,7 +61,7 @@ class InventoriExport
             $sheet->setCellValue("C{$row}", $item->Kategori);
             $sheet->setCellValue("D{$row}", $item->rackLocation->Kode_Rak ?? '-');
             $sheet->setCellValue("E{$row}", $stok);
-            $sheet->setCellValue("F{$row}", $item->nilai_barang);
+            $sheet->setCellValue("F{$row}", $nilai);
             $sheet->setCellValue("G{$row}", $status);
 
             // Color status

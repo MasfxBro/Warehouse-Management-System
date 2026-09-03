@@ -65,9 +65,9 @@
     </div>
 
     {{-- Submit --}}
-    <div class="flex items-center justify-end gap-3">
-        <a href="{{ route('inbound.index') }}" class="btn btn-outline">Batal</a>
-        <button type="submit" class="btn btn-primary btn-lg gap-2">
+    <div class="flex items-center justify-end gap-8 pt-2">
+        <a href="{{ route('inbound.index') }}" class="btn btn-outline px-8">Batal</a>
+        <button type="submit" class="btn btn-primary btn-lg gap-2 px-10">
             <i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi Inbound
         </button>
     </div>
@@ -87,12 +87,27 @@
         <div class="modal-body">
             <div><label class="wms-label">Nama Supplier <span class="text-red-500">*</span></label>
                 <input type="text" id="modal-nama" placeholder="PT. Maju Jaya..." class="wms-input"></div>
-            <div><label class="wms-label">No. Kontak</label>
-                <input type="text" id="modal-kontak" placeholder="08xx..." class="wms-input"></div>
-            <div><label class="wms-label">Email</label>
-                <input type="email" id="modal-email" placeholder="info@..." class="wms-input"></div>
-            <div><label class="wms-label">Alamat</label>
-                <textarea id="modal-alamat" rows="2" class="wms-textarea" placeholder="Jl. ..."></textarea></div>
+            <div>
+                <label class="wms-label">No. Kontak
+                    <span class="text-slate-400 font-normal normal-case text-[10px]">(Diharuskan diisi jika ada)</span>
+                </label>
+                <input type="text" id="modal-kontak" placeholder="08xx..." inputmode="numeric"
+                       pattern="[0-9]*" class="wms-input">
+                <p class="text-[10px] text-slate-400 mt-0.5">Hanya angka</p>
+            </div>
+            <div>
+                <label class="wms-label">Email
+                    <span class="text-slate-400 font-normal normal-case text-[10px]">(Diharuskan diisi jika ada)</span>
+                </label>
+                <input type="text" id="modal-email" placeholder="info@..." class="wms-input">
+                <p class="text-[10px] text-slate-400 mt-0.5">Wajib mengandung @</p>
+            </div>
+            <div>
+                <label class="wms-label">Alamat
+                    <span class="text-slate-400 font-normal normal-case text-[10px]">(Diharuskan diisi jika ada)</span>
+                </label>
+                <textarea id="modal-alamat" rows="2" class="wms-textarea" placeholder="Jl. ..."></textarea>
+            </div>
             <p id="modal-error" class="text-red-500 text-xs hidden"></p>
             <div class="modal-footer">
                 <button type="button" onclick="closeSupplierModal()" class="btn btn-outline flex-1">Batal</button>
@@ -235,12 +250,22 @@ function closeSupplierModal(){
 }
 function submitSupplierModal(){
     const nama=document.getElementById('modal-nama').value.trim();
+    const kontak=document.getElementById('modal-kontak').value.trim();
+    const email=document.getElementById('modal-email').value.trim();
     const errEl=document.getElementById('modal-error');
     const btn=document.getElementById('modal-submit-btn');
+
+    // Validasi nama
     if(!nama){errEl.textContent='Nama supplier wajib diisi.';errEl.classList.remove('hidden');return;}
+    // Validasi kontak: jika diisi, harus angka
+    if(kontak && !/^\d+$/.test(kontak)){errEl.textContent='No. Kontak hanya boleh berisi angka.';errEl.classList.remove('hidden');return;}
+    // Validasi email: jika diisi, harus mengandung @
+    if(email && !email.includes('@')){errEl.textContent='Email harus mengandung karakter @.';errEl.classList.remove('hidden');return;}
+
+    errEl.classList.add('hidden');
     btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
     fetch(supplierAjaxUrl,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json'},
-        body:JSON.stringify({Nama:nama,No_Kontak:document.getElementById('modal-kontak').value,Email:document.getElementById('modal-email').value,Alamat:document.getElementById('modal-alamat').value})})
+        body:JSON.stringify({Nama:nama,No_Kontak:kontak,Email:email,Alamat:document.getElementById('modal-alamat').value})})
     .then(r=>r.json()).then(d=>{
         if(d.success){const sel=document.getElementById('supplier-select');sel.add(new Option(d.supplier.nama,d.supplier.id,true,true));closeSupplierModal();}
         else{errEl.textContent=d.message||'Terjadi kesalahan.';errEl.classList.remove('hidden');}
@@ -249,5 +274,33 @@ function submitSupplierModal(){
 }
 document.getElementById('supplier-modal').addEventListener('click',function(e){if(e.target===this)closeSupplierModal();});
 document.addEventListener('DOMContentLoaded',()=>addBarisBarang());
+
+// Validasi resi sebelum submit
+document.getElementById('inbound-form').addEventListener('submit', function(e) {
+    const rows = document.querySelectorAll('.item-row');
+    for (const row of rows) {
+        const idx = row.id.replace('item-row-', '');
+        const resiInput = document.getElementById(`resi-input-${idx}`);
+        const tanpaResi = document.getElementById(`tanpa-resi-${idx}`);
+        if (!resiInput || !tanpaResi) continue;
+        // Jika resi kosong DAN checkbox "tanpa resi" tidak dicentang
+        if (!tanpaResi.checked && resiInput.value.trim() === '') {
+            e.preventDefault();
+            resiInput.classList.add('border-red-400');
+            resiInput.focus();
+            resiInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Tampilkan warning inline
+            let warn = resiInput.parentElement.querySelector('.resi-warn');
+            if (!warn) {
+                warn = document.createElement('p');
+                warn.className = 'resi-warn text-red-500 text-[11px] mt-1';
+                warn.textContent = 'Masukkan no. resi atau centang "Tidak ada resi".';
+                resiInput.parentElement.appendChild(warn);
+            }
+            return;
+        }
+        resiInput.classList.remove('border-red-400');
+    }
+});
 </script>
 @endsection

@@ -9,28 +9,26 @@
     <!-- Student Banner -->
     @if(auth()->user()->isUser() && session()->has('student_identity'))
         @php $student = session('student_identity'); @endphp
-        <div class="flex items-center justify-between bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-sm">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-graduation-cap text-sm"></i>
-                </div>
+        <div class="flex items-center gap-4 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-sm">
+            <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-graduation-cap text-sm"></i>
+            </div>
+            <div class="flex items-center gap-6 text-[12px] flex-wrap">
                 <div>
-                    <p class="text-[13px] font-bold leading-tight">Sesi Praktikum Aktif</p>
-                    <p class="text-[11px] text-slate-400 mt-0.5">
-                        Operator: <strong class="text-white">{{ $student['name'] }}</strong>
-                        &nbsp;·&nbsp; Kelas: <strong class="text-white">{{ $student['class'] }}</strong>
-                        &nbsp;·&nbsp; NIS: <span class="font-mono text-slate-300">{{ $student['nis'] }}</span>
-                    </p>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">Nama Operator</p>
+                    <p class="font-bold text-white">{{ $student['name'] }}</p>
+                </div>
+                <div class="w-px h-8 bg-white/10 hidden sm:block"></div>
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">Kelas</p>
+                    <p class="font-bold text-white">{{ $student['class'] }}</p>
+                </div>
+                <div class="w-px h-8 bg-white/10 hidden sm:block"></div>
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">NIS</p>
+                    <p class="font-bold font-mono text-slate-200">{{ $student['nis'] }}</p>
                 </div>
             </div>
-            <form action="{{ route('student-identity.reset') }}" method="POST">
-                @csrf
-                <button type="submit"
-                        class="text-[11px] bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5">
-                    <i class="fa-solid fa-rotate text-[10px]"></i>
-                    Ganti Sesi
-                </button>
-            </form>
         </div>
     @endif
 
@@ -199,7 +197,7 @@
                 <h3 class="wms-card-title">Critical Stock Alerts</h3>
                 <span class="badge badge-danger font-mono">{{ $lowStockCount }} item</span>
             </div>
-            <a href="{{ route('inventory.kartu-stok.index') }}"
+            <a href="{{ auth()->user()->isAdmin() ? route('inventory.kartu-stok.index') : route('inventory.stock-opname.index') }}"
                class="text-[11px] text-secondary hover:underline flex items-center gap-1">
                 View All Inventory
                 <i class="fa-solid fa-arrow-right text-[10px]"></i>
@@ -222,7 +220,7 @@
                     </thead>
                     <tbody>
                         @foreach($lowStockItems as $item)
-                            @php $stok = $item->stok; @endphp
+                            @php $stok = $item->computed_stok; @endphp
                             <tr>
                                 <td class="font-mono font-semibold text-secondary">
                                     {{ $item->SKU }}

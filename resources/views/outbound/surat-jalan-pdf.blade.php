@@ -11,6 +11,7 @@
             color: #1a202c;
             line-height: 1.5;
             padding: 30px 35px;
+            padding-bottom: 160px; /* ruang untuk TTD fixed di bawah */
         }
         /* ---- Header ---- */
         .header-wrap {
@@ -121,12 +122,17 @@
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .mono { font-family: 'DejaVu Sans Mono', monospace; }
-        /* ---- Signature ---- */
+        /* ---- Signature — Fixed di paling bawah halaman A4, di atas footer ---- */
         .sign-wrap {
+            position: fixed;
+            bottom: 32px;
+            left: 35px;
+            right: 35px;
             display: table;
-            width: 100%;
-            margin-top: 28px;
+            width: calc(100% - 70px);
             page-break-inside: avoid;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 12px;
         }
         .sign-cell {
             display: table-cell;
@@ -156,12 +162,15 @@
         }
         /* ---- Footer ---- */
         .footer {
-            margin-top: 20px;
+            position: fixed;
+            bottom: 8px;
+            left: 35px;
+            right: 35px;
             text-align: center;
             font-size: 8px;
             color: #a0aec0;
             border-top: 1px solid #e2e8f0;
-            padding-top: 8px;
+            padding-top: 4px;
         }
     </style>
 </head>

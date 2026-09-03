@@ -63,7 +63,6 @@ class MasterBarang extends Model
      */
     protected $casts = [
         'Min_Stok' => 'integer',
-        'Rack_ID'  => 'integer',
     ];
 
     // =========================================================

@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('suppliers', function (Blueprint $table) {
-            $table->id('Supplier_ID');
+            $table->uuid('Supplier_ID')->primary()->comment('UUID primary key');
             $table->string('Nama', 255)->comment('Nama supplier / perusahaan');
             $table->string('Kontak', 255)->nullable()->comment('Kontak gabungan / ringkas');
             $table->string('No_Kontak', 100)->nullable()->comment('Nomor telepon kontak');

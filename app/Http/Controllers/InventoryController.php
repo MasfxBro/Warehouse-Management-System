@@ -14,7 +14,15 @@ class InventoryController extends Controller
 
     public function kartuStokIndex()
     {
-        $items = MasterBarang::with('rackLocation')->get();
+        // Hanya Admin yang boleh akses Kartu Stok
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Fitur Kartu Stok hanya tersedia untuk Guru (Admin).');
+        }
+        $items = MasterBarang::with('rackLocation')
+            ->withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty')
+            ->paginate(15)
+            ->withQueryString();
         return view('inventory.kartu-stok', compact('items'));
     }
 
@@ -24,6 +32,11 @@ class InventoryController extends Controller
 
     public function kartuStokDetail(string $sku)
     {
+        // Hanya Admin yang boleh akses detail Kartu Stok
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Fitur Kartu Stok hanya tersedia untuk Guru (Admin).');
+        }
+
         $barang = MasterBarang::with('rackLocation')->findOrFail($sku);
 
         // Ambil semua inbound untuk SKU ini
