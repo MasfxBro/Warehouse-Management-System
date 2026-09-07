@@ -21,7 +21,6 @@ class DashboardController extends Controller
     {
         // --- Stat Cards (cache 2 menit) ---
         $stats = Cache::remember('dashboard_stats', 120, function () {
-            // withSum menghindari N+1 — 3 query total, bukan 2×N query
             $items = MasterBarang::withSum('inboundDetails as inbound_qty', 'Qty')
                 ->withSum('outboundDetails as outbound_qty', 'Qty')
                 ->get()
@@ -34,18 +33,57 @@ class DashboardController extends Controller
                 'totalSku'      => $items->count(),
                 'totalStok'     => $items->sum('computed_stok'),
                 'nilaiGudang'   => $items->sum(fn($item) => $item->computed_stok * $item->harga),
-                'lowStockItems' => $items->filter(fn($item) => $item->computed_stok <= $item->Min_Stok)->values(),
             ];
         });
 
+        // --- Critical Stock — paginated 10 per halaman (tidak di-cache karena butuh page param) ---
+        $lowStockPage    = max(1, (int) $request->query('low_page', 1));
+        $lowStockPerPage = 10;
+
+        $allLowStock = MasterBarang::withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty')
+            ->get()
+            ->map(function ($item) {
+                $item->computed_stok = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+                return $item;
+            })
+            ->filter(fn($item) => $item->computed_stok <= $item->Min_Stok)
+            ->sortBy('computed_stok')
+            ->values();
+
+        $lowStockItems = new \Illuminate\Pagination\LengthAwarePaginator(
+            $allLowStock->forPage($lowStockPage, $lowStockPerPage),
+            $allLowStock->count(),
+            $lowStockPerPage,
+            $lowStockPage,
+            ['path' => route('dashboard'), 'query' => array_merge($request->query(), []), 'pageName' => 'low_page']
+        );
+        $lowStockCount = $allLowStock->count();
+
         $today = now()->toDateString();
 
-        $inboundTodayCount  = Cache::remember('inbound_today_' . $today, 120, fn() =>
-            InboundTransaction::whereDate('Tanggal', $today)->count()
-        );
-        $outboundTodayCount = Cache::remember('outbound_today_' . $today, 120, fn() =>
-            OutboundTransaction::whereDate('Tanggal', $today)->count()
-        );
+        // --- Periode filter untuk stat card transaksi ---
+        $periodTrx = $request->query('period_trx', 'hari_ini');
+        $cacheKeyTrx = 'trx_count_' . $periodTrx . '_' . $today;
+
+        [$inboundCount, $outboundCount] = Cache::remember($cacheKeyTrx, 120, function () use ($periodTrx, $today) {
+            $inboundQuery  = InboundTransaction::query();
+            $outboundQuery = OutboundTransaction::query();
+
+            match ($periodTrx) {
+                '7_hari'  => [$inboundQuery->whereDate('Tanggal', '>=', now()->subDays(6)->toDateString()),
+                              $outboundQuery->whereDate('Tanggal', '>=', now()->subDays(6)->toDateString())],
+                '1_bulan' => [$inboundQuery->whereDate('Tanggal', '>=', now()->subDays(29)->toDateString()),
+                              $outboundQuery->whereDate('Tanggal', '>=', now()->subDays(29)->toDateString())],
+                '1_tahun' => [$inboundQuery->whereDate('Tanggal', '>=', now()->subYear()->toDateString()),
+                              $outboundQuery->whereDate('Tanggal', '>=', now()->subYear()->toDateString())],
+                'semua'   => [$inboundQuery, $outboundQuery],
+                default   => [$inboundQuery->whereDate('Tanggal', now()->toDateString()),
+                              $outboundQuery->whereDate('Tanggal', now()->toDateString())],
+            };
+
+            return [$inboundQuery->count(), $outboundQuery->count()];
+        });
 
         // --- Picking Queue (cache 60 detik) ---
         $pendingOutbounds = Cache::remember('picking_queue', 60, function () {
@@ -67,10 +105,11 @@ class DashboardController extends Controller
             'totalSku'          => $stats['totalSku'],
             'totalStok'         => $stats['totalStok'],
             'nilaiGudang'       => $stats['nilaiGudang'],
-            'lowStockItems'     => $stats['lowStockItems'],
-            'lowStockCount'     => $stats['lowStockItems']->count(),
-            'inboundTodayCount' => $inboundTodayCount,
-            'outboundTodayCount'=> $outboundTodayCount,
+            'lowStockItems'     => $lowStockItems,
+            'lowStockCount'     => $lowStockCount,
+            'inboundTodayCount' => $inboundCount,
+            'outboundTodayCount'=> $outboundCount,
+            'periodTrx'         => $periodTrx,
             'pendingOutbounds'  => $pendingOutbounds,
             'pendingCount'      => $pendingCount,
             'chartData'         => $chartData,

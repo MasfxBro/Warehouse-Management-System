@@ -5,7 +5,10 @@
 
 @section('content')
 <div class="space-y-5">
-<form action="{{ route('inbound.store') }}" method="POST" id="inbound-form">
+    <a href="{{ route('inbound.index') }}" class="btn btn-ghost btn-sm gap-1.5">
+        <i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Inbound
+    </a>
+<form action="{{ route('inbound.store') }}" method="POST" id="inbound-form" novalidate>
 @csrf
 
     {{-- SEKSI 1: INFORMASI TRANSAKSI --}}
@@ -17,9 +20,12 @@
             {{-- Tanggal --}}
             <div>
                 <label class="wms-label">Tanggal Penerimaan <span class="text-red-500">*</span></label>
-                <input type="date" name="Tanggal" value="{{ old('Tanggal', date('Y-m-d')) }}"
+                <input type="date" name="Tanggal" id="input-tanggal-inbound" value="{{ old('Tanggal', date('Y-m-d')) }}"
                        required class="wms-input @error('Tanggal') border-red-400 @enderror">
                 @error('Tanggal')<p class="text-red-500 text-[11px] mt-1">{{ $message }}</p>@enderror
+                <p id="err-input-tanggal-inbound" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Tanggal penerimaan wajib diisi.
+                </p>
             </div>
             {{-- Supplier --}}
             <div>
@@ -40,6 +46,9 @@
                     </button>
                 </div>
                 @error('Supplier_ID')<p class="text-red-500 text-[11px] mt-1">{{ $message }}</p>@enderror
+                <p id="err-supplier-select" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Supplier wajib dipilih.
+                </p>
             </div>
         </div>
         {{-- Catatan --}}
@@ -92,7 +101,7 @@
                     <span class="text-slate-400 font-normal normal-case text-[10px]">(Diharuskan diisi jika ada)</span>
                 </label>
                 <input type="text" id="modal-kontak" placeholder="08xx..." inputmode="numeric"
-                       pattern="[0-9]*" class="wms-input">
+                       class="wms-input">
                 <p class="text-[10px] text-slate-400 mt-0.5">Hanya angka</p>
             </div>
             <div>
@@ -150,20 +159,48 @@ function addBarisBarang(){
         </label>
     </div>
     <div id="panel-lama-${idx}" class="space-y-3">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div class="md:col-span-2">
-                <label class="wms-label">Pilih Barang *</label>
-                <select name="items[${idx}][SKU_lama]" id="select-barang-${idx}" onchange="autoFillBarang(${idx})" class="wms-select">${buildBarangOptions()}</select>
+        {{-- Pilih barang + info read-only --}}
+        <div>
+            <label class="wms-label">Pilih Barang *</label>
+            <select name="items[${idx}][SKU_lama]" id="select-barang-${idx}" onchange="autoFillBarang(${idx})" class="wms-select">${buildBarangOptions()}</select>
+        </div>
+
+        {{-- Info read-only barang: tampil setelah barang dipilih --}}
+        <div id="autofill-info-${idx}" class="hidden">
+            <div class="grid grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Kategori</p>
+                    <p id="af-kategori-${idx}" class="text-xs font-semibold text-slate-700">—</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Min. Stok</p>
+                    <p id="af-minstok-${idx}" class="text-xs font-semibold font-mono text-slate-700">—</p>
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                <i class="fa-solid fa-lock text-[9px]"></i> Data di atas diambil otomatis dari master barang dan tidak dapat diubah di sini.
+            </p>
+        </div>
+
+        {{-- Pilih Rak + Qty: selalu bisa dipilih bebas seperti barang baru --}}
+        <div id="rak-qty-lama-${idx}" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <label class="wms-label">Lokasi Rak Tujuan *</label>
+                <select name="items[${idx}][Rack_ID_lama]" id="rack-lama-${idx}" onchange="onRakLamaChange(${idx})" class="wms-select">
+                    ${buildRackOptions()}
+                </select>
+                <p id="err-rack-lama-${idx}" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Rak tujuan wajib dipilih.
+                </p>
             </div>
             <div>
                 <label class="wms-label">Qty *</label>
-                <input type="number" name="items[${idx}][Qty]" min="1" value="1" class="wms-input font-mono">
+                <input type="number" id="qty-lama-${idx}" name="items[${idx}][Qty]" min="1" value="1" class="wms-input font-mono">
+                <p id="err-qty-lama-${idx}" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                    <span id="err-qty-lama-msg-${idx}">Qty melebihi kapasitas rak.</span>
+                </p>
             </div>
-        </div>
-        <div id="autofill-info-${idx}" class="hidden grid grid-cols-3 gap-2 text-xs">
-            <div><label class="wms-label text-[10px]">Kategori</label><input type="text" id="af-kategori-${idx}" disabled class="wms-input bg-[#eceef0] text-slate-500 text-xs"></div>
-            <div><label class="wms-label text-[10px]">Rak Default</label><input type="text" id="af-rak-${idx}" disabled class="wms-input bg-[#eceef0] text-slate-500 text-xs"></div>
-            <div><label class="wms-label text-[10px]">Min Stok</label><input type="text" id="af-minstok-${idx}" disabled class="wms-input bg-[#eceef0] text-slate-500 text-xs"></div>
         </div>
     </div>
     <div id="panel-baru-${idx}" class="hidden space-y-3">
@@ -182,7 +219,7 @@ function addBarisBarang(){
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
                 <label class="wms-label">Lokasi Rak *</label>
-                <select name="items[${idx}][Rack_ID_baru]" class="wms-select">${buildRackOptions()}</select>
+                <select name="items[${idx}][Rack_ID_baru]" id="rack-baru-${idx}" onchange="onRakBaruChange(${idx})" class="wms-select">${buildRackOptions()}</select>
             </div>
             <div>
                 <label class="wms-label">Min. Stok</label>
@@ -190,7 +227,11 @@ function addBarisBarang(){
             </div>
             <div>
                 <label class="wms-label">Qty *</label>
-                <input type="number" name="items[${idx}][Qty]" min="1" value="1" class="wms-input font-mono">
+                <input type="number" id="qty-baru-${idx}" name="items[${idx}][Qty]" min="1" value="1" class="wms-input font-mono">
+                <p id="err-qty-baru-${idx}" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                    <span id="err-qty-baru-msg-${idx}">Qty melebihi kapasitas rak.</span>
+                </p>
             </div>
         </div>
     </div>
@@ -207,6 +248,8 @@ function addBarisBarang(){
     </div>`;
     document.getElementById('items-container').appendChild(div);
     updateRemoveButtons();
+    renumberRows();
+    attachQtyListeners(idx);
 }
 
 function removeRow(idx){const el=document.getElementById(`item-row-${idx}`);if(el)el.remove();updateRemoveButtons();renumberRows();}
@@ -218,16 +261,45 @@ function toggleJenis(idx,jenis){
     document.getElementById(`panel-baru-${idx}`).classList.toggle('hidden',jenis!=='baru');
 }
 function autoFillBarang(idx){
-    const sku=document.getElementById(`select-barang-${idx}`).value;
-    const b=masterBarangs.find(x=>x.sku===sku);
-    const info=document.getElementById(`autofill-info-${idx}`);
-    if(b){
-        document.getElementById(`af-kategori-${idx}`).value=b.kategori||'-';
-        const r=rackLocations.find(x=>x.id==b.rack_id);
-        document.getElementById(`af-rak-${idx}`).value=r?r.label:'-';
-        document.getElementById(`af-minstok-${idx}`).value=b.min_stok;
-        info.classList.remove('hidden');info.classList.add('grid');
-    }else{info.classList.add('hidden');info.classList.remove('grid');}
+    const sku = document.getElementById(`select-barang-${idx}`).value;
+    const b   = masterBarangs.find(x => x.sku === sku);
+    const info        = document.getElementById(`autofill-info-${idx}`);
+    const rakQtyWrap  = document.getElementById(`rak-qty-lama-${idx}`);
+
+    if (b) {
+        // Isi info read-only
+        document.getElementById(`af-kategori-${idx}`).textContent = b.kategori || '-';
+        document.getElementById(`af-minstok-${idx}`).textContent  = b.min_stok || '0';
+        info.classList.remove('hidden');
+
+        // Tampilkan rak + qty, reset rak select
+        rakQtyWrap.classList.remove('hidden');
+        const rakSel = document.getElementById(`rack-lama-${idx}`);
+        if (rakSel) rakSel.value = '';
+
+        // Reset qty
+        const qtyEl = document.getElementById(`qty-lama-${idx}`);
+        if (qtyEl) { qtyEl.value = 1; qtyEl.removeAttribute('max'); }
+    } else {
+        info.classList.add('hidden');
+        rakQtyWrap.classList.add('hidden');
+    }
+}
+
+function onRakLamaChange(idx){
+    const rakSel = document.getElementById(`rack-lama-${idx}`);
+    const qtyEl  = document.getElementById(`qty-lama-${idx}`);
+    const errRak = document.getElementById(`err-rack-lama-${idx}`);
+    if (errRak) { errRak.classList.add('hidden'); errRak.classList.remove('flex'); }
+    if (!rakSel || !qtyEl) return;
+    const sisa = getSisaRak(rakSel.value);
+    if (sisa !== Infinity) {
+        qtyEl.max   = sisa;
+        if (parseInt(qtyEl.value) > sisa) qtyEl.value = sisa;
+    } else {
+        qtyEl.removeAttribute('max');
+    }
+    validateQtyKapasitas(qtyEl, `err-qty-lama-${idx}`, `err-qty-lama-msg-${idx}`, sisa);
 }
 function updateSkuPreview(idx){
     const v=document.getElementById(`input-kategori-${idx}`).value;
@@ -239,6 +311,65 @@ function toggleResiInput(idx){
     const inp=document.getElementById(`resi-input-${idx}`);
     inp.disabled=cb.checked;inp.value='';
     inp.classList.toggle('bg-[#eceef0]',cb.checked);
+}
+
+// ── Validasi kapasitas rak saat input qty ──────────────────────────
+function getSisaRak(rackId) {
+    const r = rackLocations.find(x => x.id == rackId);
+    return r ? (r.sisa || 0) : Infinity;
+}
+
+function validateQtyKapasitas(qtyEl, errId, msgId, sisa) {
+    const qty = parseInt(qtyEl.value) || 0;
+    const errEl = document.getElementById(errId);
+    const msgEl = document.getElementById(msgId);
+    if (sisa !== Infinity && qty > sisa) {
+        if (errEl) { errEl.classList.remove('hidden'); errEl.classList.add('flex'); }
+        if (msgEl) msgEl.textContent = `Qty (${qty}) melebihi sisa kapasitas rak (${sisa} unit).`;
+        qtyEl.classList.add('border-red-400');
+        return false;
+    } else {
+        if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
+        qtyEl.classList.remove('border-red-400');
+        return true;
+    }
+}
+
+// Dipanggil saat pilih rak baru (barang baru) — update max qty dan validasi
+function onRakBaruChange(idx) {
+    const rakSel = document.getElementById(`rack-baru-${idx}`);
+    const qtyEl  = document.getElementById(`qty-baru-${idx}`);
+    if (!rakSel || !qtyEl) return;
+    const sisa = getSisaRak(rakSel.value);
+    if (sisa !== Infinity) {
+        qtyEl.max = sisa;
+        if (parseInt(qtyEl.value) > sisa) qtyEl.value = sisa;
+    }
+    validateQtyKapasitas(qtyEl, `err-qty-baru-${idx}`, `err-qty-baru-msg-${idx}`, sisa);
+}
+
+// Listener realtime qty barang baru — dipasang setelah innerHTML di-set
+function attachQtyListeners(idx) {
+    // Barang baru: qty berubah → validasi vs kapasitas rak
+    const qtyBaruEl = document.getElementById(`qty-baru-${idx}`);
+    const rakSel    = document.getElementById(`rack-baru-${idx}`);
+    if (qtyBaruEl) {
+        qtyBaruEl.addEventListener('input', function() {
+            const sisa = rakSel ? getSisaRak(rakSel.value) : Infinity;
+            if (sisa !== Infinity && parseInt(this.value) > sisa) this.value = sisa;
+            validateQtyKapasitas(this, `err-qty-baru-${idx}`, `err-qty-baru-msg-${idx}`, sisa);
+        });
+    }
+    // Barang lama: qty berubah → validasi vs kapasitas rak yang dipilih
+    const qtyLamaEl = document.getElementById(`qty-lama-${idx}`);
+    const rakLamaSel = document.getElementById(`rack-lama-${idx}`);
+    if (qtyLamaEl) {
+        qtyLamaEl.addEventListener('input', function() {
+            const sisa = rakLamaSel ? getSisaRak(rakLamaSel.value) : Infinity;
+            if (sisa !== Infinity && parseInt(this.value) > sisa) this.value = sisa;
+            validateQtyKapasitas(this, `err-qty-lama-${idx}`, `err-qty-lama-msg-${idx}`, sisa);
+        });
+    }
 }
 
 // Supplier Modal
@@ -277,6 +408,97 @@ document.addEventListener('DOMContentLoaded',()=>addBarisBarang());
 
 // Validasi resi sebelum submit
 document.getElementById('inbound-form').addEventListener('submit', function(e) {
+    // Validasi field utama dulu
+    var valid = true;
+    function showFieldErr(id, msg) {
+        var p = document.getElementById('err-' + id);
+        var inp = document.getElementById(id);
+        if (p) { p.innerHTML = '<i class="fa-solid fa-circle-exclamation text-[10px] mr-1"></i>' + msg; p.classList.remove('hidden'); p.classList.add('flex'); }
+        if (inp) inp.classList.add('border-red-400');
+    }
+    var tgl = document.getElementById('input-tanggal-inbound');
+    var sup = document.getElementById('supplier-select');
+    if (!tgl || !tgl.value) { showFieldErr('input-tanggal-inbound', 'Tanggal penerimaan wajib diisi.'); valid = false; }
+    if (!sup || !sup.value)  { showFieldErr('supplier-select', 'Supplier wajib dipilih.'); valid = false; }
+    ['input-tanggal-inbound','supplier-select'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(el) el.addEventListener('change', function(){
+            var p=document.getElementById('err-'+id);
+            if(p){p.classList.add('hidden');p.classList.remove('flex');}
+            el.classList.remove('border-red-400');
+        },{once:true});
+    });
+    if (!valid) { e.preventDefault(); return; }
+
+    // Validasi duplikat nama barang baru dalam satu transaksi
+    var namaBaruSet = {};
+    document.querySelectorAll('.item-row').forEach(function(row) {
+        const idx = row.id.replace('item-row-', '');
+        const jenisBaru = row.querySelector(`input[name="items[${idx}][jenis]"][value="baru"]`);
+        if (jenisBaru && jenisBaru.checked) {
+            const namaInput = row.querySelector(`input[name="items[${idx}][Nama_baru]"]`);
+            if (namaInput && namaInput.value.trim()) {
+                const namaLower = namaInput.value.trim().toLowerCase();
+                if (namaBaruSet[namaLower]) {
+                    // Tandai merah field yang duplikat
+                    namaInput.classList.add('border-red-400');
+                    valid = false;
+                    // Tampilkan error di bawah input
+                    var errId = `err-nama-baru-dup-${idx}`;
+                    var errEl = document.getElementById(errId);
+                    if (!errEl) {
+                        errEl = document.createElement('p');
+                        errEl.id = errId;
+                        errEl.className = 'flex items-center gap-1 text-[11px] text-red-500 mt-1';
+                        namaInput.parentNode.appendChild(errEl);
+                    }
+                    errEl.innerHTML = '<i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama barang ini sudah dipakai di baris lain. Hapus salah satu baris duplikat.';
+                    errEl.classList.remove('hidden'); errEl.classList.add('flex');
+                } else {
+                    namaBaruSet[namaLower] = true;
+                    namaInput.classList.remove('border-red-400');
+                    var errEl2 = document.getElementById(`err-nama-baru-dup-${idx}`);
+                    if (errEl2) { errEl2.classList.add('hidden'); errEl2.classList.remove('flex'); }
+                }
+            }
+        }
+    });
+    if (!valid) { e.preventDefault(); return; }
+
+    // Validasi kapasitas rak untuk semua baris (barang baru DAN lama)
+    document.querySelectorAll('.item-row').forEach(function(row) {
+        const idx = row.id.replace('item-row-', '');
+        const jenisBaru = row.querySelector(`input[name="items[${idx}][jenis]"][value="baru"]`);
+        const jenisLama = row.querySelector(`input[name="items[${idx}][jenis]"][value="lama"]`);
+
+        if (jenisBaru && jenisBaru.checked) {
+            const rakSel  = document.getElementById(`rack-baru-${idx}`);
+            const qtyBaru = document.getElementById(`qty-baru-${idx}`);
+            if (rakSel && rakSel.value && qtyBaru) {
+                const sisa = getSisaRak(rakSel.value);
+                if (!validateQtyKapasitas(qtyBaru, `err-qty-baru-${idx}`, `err-qty-baru-msg-${idx}`, sisa)) {
+                    valid = false;
+                }
+            }
+        } else if (jenisLama && jenisLama.checked) {
+            const rakLamaSel = document.getElementById(`rack-lama-${idx}`);
+            const qtyLama    = document.getElementById(`qty-lama-${idx}`);
+            // Cek wajib pilih rak
+            if (!rakLamaSel || !rakLamaSel.value) {
+                const errRak = document.getElementById(`err-rack-lama-${idx}`);
+                if (errRak) { errRak.innerHTML = '<i class="fa-solid fa-circle-exclamation text-[10px] mr-1"></i>Rak tujuan wajib dipilih.'; errRak.classList.remove('hidden'); errRak.classList.add('flex'); }
+                valid = false;
+            } else if (qtyLama) {
+                const sisa = getSisaRak(rakLamaSel.value);
+                if (!validateQtyKapasitas(qtyLama, `err-qty-lama-${idx}`, `err-qty-lama-msg-${idx}`, sisa)) {
+                    valid = false;
+                }
+            }
+        }
+    });
+    if (!valid) { e.preventDefault(); return; }
+
+    // Validasi resi per baris
     const rows = document.querySelectorAll('.item-row');
     for (const row of rows) {
         const idx = row.id.replace('item-row-', '');

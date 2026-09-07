@@ -41,11 +41,13 @@ Route::middleware(['auth', 'student.identity'])->group(function () {
         // Lokasi Rak
         Route::get('/rak', [RackLocationController::class, 'index'])->name('rak.index');
         Route::get('/rak/{id}', [RackLocationController::class, 'show'])->name('rak.show');
+        // Pindah barang: Admin & Siswa bisa
+        Route::post('/rak/{id}/pindah-barang', [RackLocationController::class, 'pindahBarang'])->name('rak.pindah-barang');
         Route::middleware('role:admin')->group(function () {
             Route::post('/rak', [RackLocationController::class, 'store'])->name('rak.store');
             Route::put('/rak/{id}', [RackLocationController::class, 'update'])->name('rak.update');
             Route::delete('/rak/{id}', [RackLocationController::class, 'destroy'])->name('rak.destroy');
-            Route::post('/rak/{id}/pindah-barang', [RackLocationController::class, 'pindahBarang'])->name('rak.pindah-barang');
+            Route::post('/rak/{id}/upload-foto', [RackLocationController::class, 'uploadFoto'])->name('rak.upload-foto');
         });
 
         // Supplier
@@ -54,8 +56,11 @@ Route::middleware(['auth', 'student.identity'])->group(function () {
             Route::put('/supplier/{id}', [SupplierController::class, 'update'])->name('supplier.update');
         });
 
-        // Customer (Pure Read-Only)
+        // Customer (Pure Read-Only + Edit Admin)
         Route::get('/customer', [CustomerController::class, 'index'])->name('customer.index');
+        Route::middleware('role:admin')->group(function () {
+            Route::put('/customer/{id}', [CustomerController::class, 'update'])->name('customer.update');
+        });
 
         // Data Barang (Pure Read-Only + Detail, QR & Label PDF)
         Route::get('/barang', [MasterBarangController::class, 'index'])->name('barang.index');

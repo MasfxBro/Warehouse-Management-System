@@ -247,47 +247,146 @@
      STUDENT IDENTITY MODAL (Non-bypassable)
      ================================================================ -->@if(auth()->check() && auth()->user()->isUser() && (!session()->has('student_identity') || !empty($require_student_identity_modal)))
     <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="max-w-md w-full bg-white rounded-xl shadow-2xl border border-[#e2e8f0] overflow-hidden">
+    <div class="modal-overlay flex items-center justify-center">
+        <div class="modal-box">
             <!-- Header -->
-            <div class="bg-slate-900 px-6 py-6 text-white text-center">
-                <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-3">
-                    <i class="fa-solid fa-graduation-cap text-2xl"></i>
+            <div class="modal-header border-b-0 flex-col text-center py-5 bg-slate-900 text-white rounded-t-xl">
+                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-2">
+                    <i class="fa-solid fa-graduation-cap text-lg"></i>
                 </div>
-                <h2 class="text-lg font-bold tracking-tight">Form Identitas Siswa</h2>
-                <p class="text-[11px] text-slate-400 mt-1">Wajib diisi sebelum memulai pendataan dan pencatatan!</p>
+                <h2 class="text-sm font-bold tracking-tight text-white">Form Identitas Siswa</h2>
+                <p class="text-[11px] text-slate-400 mt-0.5">Wajib diisi sebelum memulai pendataan dan pencatatan!</p>
             </div>
             <!-- Body -->
-            <form action="{{ route('student-identity.store') }}" method="POST" class="p-6 space-y-4">
+            <form action="{{ route('student-identity.store') }}" method="POST"
+                    class="modal-body" id="student-identity-form" novalidate>
                 @csrf
+                @if($errors->any())
+                    <div class="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3.5 py-3 text-xs">
+                        <i class="fa-solid fa-triangle-exclamation text-sm shrink-0 mt-0.5"></i>
+                        <div class="space-y-0.5">
+                            @foreach($errors->all() as $error)
+                                <p>{{ $error }}</p>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div>
                     <label class="wms-label">Nama Lengkap Siswa <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" required placeholder="Contoh: Elmaliq Akbar" class="wms-input">
+                    <input type="text" name="name" required value="{{ old('name') }}"
+                        placeholder="Contoh: Elmaliq Akbar"
+                        class="wms-input @error('name') border-red-400 @enderror">
+                    @error('name')
+                        <p class="flex items-center gap-1 text-[11px] text-red-500 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> {{ $message }}
+                        </p>
+                    @enderror
+                    <p id="err-name-identity" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama lengkap wajib diisi.
+                    </p>
+                        <p id="err-name-identity" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama lengkap wajib diisi.
+                        </p>
                 </div>
+
                 <div>
                     <label class="wms-label">Kelas <span class="text-red-500">*</span></label>
-                    <input type="text" name="class" required placeholder="Contoh: XII RPL 1" class="wms-input">
+                    <input type="text" name="class" required value="{{ old('class') }}"
+                        placeholder="Contoh: XII RPL 1"
+                        class="wms-input @error('class') border-red-400 @enderror">
+                    @error('class')
+                        <p class="flex items-center gap-1 text-[11px] text-red-500 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> {{ $message }}
+                        </p>
+                    @enderror
+                    <p id="err-class-identity" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kelas wajib diisi.
+                    </p>
+                        <p id="err-class-identity" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kelas wajib diisi.
+                        </p>
                 </div>
+
                 <div>
                     <label class="wms-label">NIS (Nomor Induk Siswa) <span class="text-red-500">*</span></label>
-                    <input type="text" name="nis" required placeholder="Contoh: 202612345"
-                           pattern="[0-9]+" inputmode="numeric"
-                           title="NIS harus berupa angka"
-                           class="wms-input font-mono">
-                    <p class="text-[10px] text-slate-400 mt-1">Hanya boleh diisi dengan angka.</p>
+                    <input type="text" name="nis" id="nis-input" required value="{{ old('nis') }}"
+                        placeholder="Contoh: 202612345" inputmode="numeric" autocomplete="off"
+                        class="wms-input font-mono @error('nis') border-red-400 @enderror">
+                    <p id="nis-inline-error" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                        NIS hanya boleh berisi angka (0-9).
+                    </p>
+                    @error('nis')
+                        <p class="flex items-center gap-1 text-[11px] text-red-500 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> {{ $message }}
+                        </p>
+                    @else
+                        <p class="text-[10px] text-slate-400 mt-1">Hanya boleh diisi dengan angka.</p>
+                    @enderror
                 </div>
-                <div class="pt-1">
+
+                <div class="modal-footer flex-col gap-2">
                     <button type="submit"
-                            class="w-full py-2.5 px-4 bg-secondary hover:bg-[#004499] text-white font-bold text-sm rounded-lg shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
+                            class="w-full py-2.5 px-4 bg-[#0058be] hover:bg-[#004499] text-white font-bold text-sm rounded-lg shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-play text-xs"></i>
                         Mulai Praktikum
                     </button>
+                    <p class="text-[11px] text-slate-400 text-center">
+                        Data identitas ini dicatat otomatis dalam System Activity Log.
+                    </p>
                 </div>
-                <p class="text-[11px] text-slate-400 text-center">
-                    Data identitas ini dicatat otomatis dalam System Activity Log.
-                </p>
             </form>
         </div>
     </div>
+        <script>
+        (function () {
+            var form     = document.getElementById('student-identity-form');
+            var nisInput = document.getElementById('nis-input');
+            if (!form) return;
+
+            function showFieldErr(el, errId) {
+                if (el) el.classList.add('border-red-400');
+                var p = document.getElementById(errId);
+                if (p) { p.classList.remove('hidden'); p.classList.add('flex'); }
+            }
+            function hideFieldErr(el, errId) {
+                if (el) el.classList.remove('border-red-400');
+                var p = document.getElementById(errId);
+                if (p) { p.classList.add('hidden'); p.classList.remove('flex'); }
+            }
+
+            var nameEl  = form.querySelector('[name="name"]');
+            var classEl = form.querySelector('[name="class"]');
+
+            if (nameEl)  nameEl.addEventListener('input',  function () { hideFieldErr(nameEl,  'err-name-identity'); });
+            if (classEl) classEl.addEventListener('input', function () { hideFieldErr(classEl, 'err-class-identity'); });
+
+            if (nisInput) {
+                nisInput.addEventListener('input', function () {
+                    var clean = this.value.replace(/[^0-9]/g, '');
+                    if (this.value !== clean) { this.value = clean; showFieldErr(nisInput, 'nis-inline-error'); }
+                    else { hideFieldErr(nisInput, 'nis-inline-error'); }
+                });
+                nisInput.addEventListener('paste', function (e) {
+                    e.preventDefault();
+                    var pasted = (e.clipboardData || window.clipboardData).getData('text');
+                    this.value = pasted.replace(/[^0-9]/g, '');
+                    this.dispatchEvent(new Event('input'));
+                });
+            }
+
+            form.addEventListener('submit', function (e) {
+                var valid = true;
+                if (!nameEl  || !nameEl.value.trim())  { showFieldErr(nameEl,  'err-name-identity');  valid = false; }
+                if (!classEl || !classEl.value.trim()) { showFieldErr(classEl, 'err-class-identity'); valid = false; }
+                if (!nisInput || nisInput.value.trim() === '' || /[^0-9]/.test(nisInput.value)) {
+                    showFieldErr(nisInput, 'nis-inline-error'); valid = false;
+                }
+                if (!valid) e.preventDefault();
+            });
+        })();
+    </script>
 @endif
 
 <script>

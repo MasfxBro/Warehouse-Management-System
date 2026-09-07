@@ -15,7 +15,7 @@ class SupplierController extends Controller
     {
         $search = $request->query('search');
 
-        $query = Supplier::withCount('inboundTransactions')->latest();
+        $query = Supplier::withCount('inboundTransactions')->orderBy('Nama');
 
         if ($search) {
             $searchLower = strtolower($search);

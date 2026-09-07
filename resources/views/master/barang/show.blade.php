@@ -41,13 +41,33 @@
                         ['Min. Stok',       number_format($item->Min_Stok) . ' pcs',                                                    true],
                         ['Harga Satuan',    'Rp ' . number_format($item->harga, 0, ',', '.'),                                            true],
                         ['Total Nilai',     'Rp ' . number_format($item->computed_stok * $item->harga, 0, ',', '.'),                     true],
-                        ['Lokasi Rak',      $rackName,                                                                                   true],
                     ] as [$label, $val, $mono])
                         <div class="p-3 rounded-lg bg-[#f7f9fb] border border-[#eceef0]">
                             <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">{{ $label }}</p>
                             <p class="text-sm font-bold text-slate-900 {{ $mono ? 'font-mono' : '' }}">{{ $val }}</p>
                         </div>
                     @endforeach
+
+                    {{-- Lokasi Rak: tampil semua rak jika barang tersebar di beberapa rak --}}
+                    @if($stokPerRak->count() > 1)
+                        <div class="p-3 rounded-lg bg-[#f7f9fb] border border-[#eceef0] col-span-2 sm:col-span-3">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Lokasi Rak</p>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach($stokPerRak as $rakInfo)
+                                    <div class="inline-flex items-center gap-1.5 bg-white border border-[#e2e8f0] rounded-lg px-2.5 py-1.5 text-xs">
+                                        <span class="font-mono font-bold text-secondary">{{ $rakInfo['kode_rak'] }}</span>
+                                        <span class="text-slate-400">·</span>
+                                        <span class="font-mono text-slate-600">{{ number_format($rakInfo['stok']) }} unit</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <div class="p-3 rounded-lg bg-[#f7f9fb] border border-[#eceef0]">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Lokasi Rak</p>
+                            <p class="text-sm font-bold text-slate-900 font-mono">{{ $rackName }}</p>
+                        </div>
+                    @endif
                 </div>
             </div>
 

@@ -122,44 +122,45 @@
 
 {{-- Modal Edit Supplier (Admin Only) --}}
 @if(auth()->user()->isAdmin())
-<div id="modal-edit-supplier" class="fixed inset-0 bg-black/50 backdrop-blur-sm items-center justify-center z-50 hidden p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full border border-[#e2e8f0] overflow-hidden">
-        <div class="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
-            <h3 class="text-sm font-bold flex items-center gap-2">
-                <i class="fa-solid fa-building"></i> Edit Data Supplier
-            </h3>
+<div id="modal-edit-supplier" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h4 class="modal-title flex items-center gap-2">
+                <i class="fa-solid fa-building text-[#0058be]"></i> Edit Data Supplier
+            </h4>
             <button type="button" onclick="closeEditSupplier()"
-                    class="text-slate-400 hover:text-white transition-colors cursor-pointer">
+                    class="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>
-        <form id="form-edit-supplier" method="POST" class="p-6 space-y-4">
+        <form id="form-edit-supplier" method="POST" class="modal-body" novalidate>
             @csrf @method('PUT')
             <div>
                 <label class="wms-label">Nama Supplier / PT <span class="text-red-500">*</span></label>
                 <input type="text" name="Nama" id="edit-nama" required class="wms-input">
+                <p id="err-edit-nama" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama supplier wajib diisi.
+                </p>
             </div>
             <div>
                 <label class="wms-label">No. Kontak
-                    <span class="text-[10px] text-slate-400 font-normal">(Diharuskan diisi jika ada, hanya angka)</span>
+                    <span class="text-[10px] text-slate-400 font-normal">(hanya angka)</span>
                 </label>
                 <input type="text" name="No_Kontak" id="edit-kontak" inputmode="numeric"
-                       pattern="[0-9]*" placeholder="08xx..." class="wms-input">
+                       placeholder="08xx..." class="wms-input">
             </div>
             <div>
                 <label class="wms-label">Email
-                    <span class="text-[10px] text-slate-400 font-normal">(Diharuskan diisi jika ada, wajib ada @)</span>
+                    <span class="text-[10px] text-slate-400 font-normal">(wajib ada @)</span>
                 </label>
                 <input type="text" name="Email" id="edit-email" placeholder="info@..." class="wms-input">
             </div>
             <div>
-                <label class="wms-label">Alamat
-                    <span class="text-[10px] text-slate-400 font-normal">(Diharuskan diisi jika ada)</span>
-                </label>
+                <label class="wms-label">Alamat</label>
                 <textarea name="Alamat" id="edit-alamat" rows="2" class="wms-textarea" placeholder="Jl. ..."></textarea>
             </div>
             <p id="edit-error" class="text-red-500 text-xs hidden"></p>
-            <div class="flex gap-3 pt-1">
+            <div class="modal-footer">
                 <button type="button" onclick="closeEditSupplier()" class="btn btn-outline flex-1">Batal</button>
                 <button type="submit" class="btn btn-primary flex-1 gap-1.5">
                     <i class="fa-solid fa-floppy-disk"></i> Simpan
@@ -180,19 +181,30 @@ function openEditSupplier(id, nama, kontak, email, alamat) {
 
     const m = document.getElementById('modal-edit-supplier');
     m.classList.remove('hidden');
-    m.classList.add('flex');
 }
 function closeEditSupplier() {
-    const m = document.getElementById('modal-edit-supplier');
-    m.classList.add('hidden');
-    m.classList.remove('flex');
+    document.getElementById('modal-edit-supplier').classList.add('hidden');
 }
 // Validasi sebelum submit
 document.getElementById('form-edit-supplier').addEventListener('submit', function(e) {
+    const nama   = document.getElementById('edit-nama').value.trim();
     const kontak = document.getElementById('edit-kontak').value.trim();
     const email  = document.getElementById('edit-email').value.trim();
     const errEl  = document.getElementById('edit-error');
+    const namaEl = document.getElementById('edit-nama');
+    const errNama = document.getElementById('err-edit-nama');
 
+    // Reset
+    errEl.classList.add('hidden');
+    if (errNama) { errNama.classList.add('hidden'); errNama.classList.remove('flex'); }
+    if (namaEl)  namaEl.classList.remove('border-red-400');
+
+    if (!nama) {
+        e.preventDefault();
+        if (errNama) { errNama.classList.remove('hidden'); errNama.classList.add('flex'); }
+        if (namaEl)  namaEl.classList.add('border-red-400');
+        return;
+    }
     if (kontak && !/^\d+$/.test(kontak)) {
         e.preventDefault();
         errEl.textContent = 'No. Kontak hanya boleh berisi angka.';

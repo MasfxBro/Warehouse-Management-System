@@ -47,7 +47,7 @@
             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <i class="fa-solid fa-clipboard-list text-amber-500"></i> Antrian Picking List
             </h3>
-            <span class="badge badge-warning">{{ $pickingQueue->count() }} pending</span>
+            <span class="badge badge-warning">{{ $pickingQueue->total() }} pending</span>
         </div>
         <div class="wms-card overflow-hidden">
             <div class="overflow-x-auto">
@@ -89,6 +89,9 @@
                     </div>
                 @endif
             </div>
+            @if($pickingQueue->hasPages())
+                <div class="p-4 border-t border-[#e2e8f0] bg-[#f7f9fb]">{{ $pickingQueue->links() }}</div>
+            @endif
         </div>
     </div>
 

@@ -15,7 +15,7 @@ class RackLocation extends Model
     public    $incrementing = false;
     protected $keyType    = 'string';
 
-    protected $fillable = ['Kode_Rak', 'Aisle', 'Level', 'Kapasitas'];
+    protected $fillable = ['Kode_Rak', 'Aisle', 'Level', 'Kapasitas', 'foto_path'];
     protected $casts    = ['Kapasitas' => 'integer'];
 
     protected static function boot(): void

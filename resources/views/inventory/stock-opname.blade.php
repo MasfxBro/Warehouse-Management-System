@@ -83,45 +83,49 @@
 </div>
 
 {{-- Modal Detail Stock Opname --}}
-<div id="modal-opname-detail" class="fixed inset-0 bg-black/50 backdrop-blur-sm items-center justify-center z-50 hidden p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full border border-[#e2e8f0] overflow-hidden">
-        <div class="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
-            <h3 class="text-sm font-bold flex items-center gap-2">
-                <i class="fa-solid fa-clipboard-check"></i>
+<div id="modal-opname-detail" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h4 class="modal-title flex items-center gap-2">
+                <i class="fa-solid fa-clipboard-check text-[#0058be]"></i>
                 Detail Stock Opname
-            </h3>
+            </h4>
             <button type="button" onclick="closeOpnameDetail()"
-                    class="text-slate-400 hover:text-white transition-colors cursor-pointer">
+                    class="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>
-        <div class="p-6 space-y-4">
-            <div class="grid grid-cols-2 gap-4 text-xs">
+        <div class="modal-body">
+            {{-- Info barang dalam grid read-only --}}
+            <div class="grid grid-cols-2 gap-3 p-4 bg-surface rounded-lg border border-[#e2e8f0]">
                 <div>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">SKU</p>
-                    <p id="detail-sku" class="font-mono font-bold text-secondary"></p>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">SKU</p>
+                    <p id="detail-sku" class="font-mono font-bold text-secondary text-sm"></p>
                 </div>
                 <div>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Nama Barang</p>
-                    <p id="detail-nama" class="font-medium text-slate-900"></p>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Nama Barang</p>
+                    <p id="detail-nama" class="font-semibold text-slate-900 text-sm"></p>
                 </div>
                 <div>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Tanggal Pemeriksaan</p>
-                    <p id="detail-tanggal" class="font-mono text-slate-700"></p>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Tanggal Pemeriksaan</p>
+                    <p id="detail-tanggal" class="font-mono text-slate-700 text-sm"></p>
                 </div>
                 <div>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Pemeriksa</p>
-                    <p id="detail-pemeriksa" class="text-slate-700"></p>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Pemeriksa</p>
+                    <p id="detail-pemeriksa" class="text-slate-700 text-sm"></p>
                 </div>
             </div>
+            {{-- Kondisi Fisik --}}
             <div>
-                <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Kondisi Fisik Barang</p>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-lines text-[9px]"></i> Kondisi Fisik Barang
+                </p>
                 <div id="detail-kondisi"
-                     class="bg-surface border border-[#e2e8f0] rounded-lg p-4 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+                     class="bg-white border border-[#e2e8f0] rounded-lg px-4 py-3 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap min-h-[60px]">
                 </div>
             </div>
-            <div class="flex justify-end pt-2">
-                <button type="button" onclick="closeOpnameDetail()" class="btn btn-outline">
+            <div class="modal-footer">
+                <button type="button" onclick="closeOpnameDetail()" class="btn btn-outline w-full">
                     Tutup
                 </button>
             </div>
@@ -136,15 +140,10 @@ function showOpnameDetail(id, sku, nama, tanggal, pemeriksa, kondisi) {
     document.getElementById('detail-tanggal').textContent   = tanggal;
     document.getElementById('detail-pemeriksa').textContent = pemeriksa;
     document.getElementById('detail-kondisi').textContent   = kondisi;
-
-    const m = document.getElementById('modal-opname-detail');
-    m.classList.remove('hidden');
-    m.classList.add('flex');
+    document.getElementById('modal-opname-detail').classList.remove('hidden');
 }
 function closeOpnameDetail() {
-    const m = document.getElementById('modal-opname-detail');
-    m.classList.add('hidden');
-    m.classList.remove('flex');
+    document.getElementById('modal-opname-detail').classList.add('hidden');
 }
 document.getElementById('modal-opname-detail')?.addEventListener('click', function(e) {
     if (e.target === this) closeOpnameDetail();

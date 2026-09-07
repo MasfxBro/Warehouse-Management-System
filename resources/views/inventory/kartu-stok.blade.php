@@ -13,10 +13,22 @@
             </h2>
             <p class="page-subtitle">Pantau stok real-time. Klik "Detail" untuk melihat riwayat mutasi per barang.</p>
         </div>
-        <div class="relative">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] pointer-events-none"></i>
-            <input type="text" id="live-search" placeholder="Cari SKU / nama / kategori..."
-                   class="wms-input w-72 text-xs" style="height:2.25rem;padding-left:2rem;">
+        <div class="flex flex-wrap items-center gap-2">
+            <form action="{{ route('inventory.kartu-stok.index') }}" method="GET" class="flex items-center gap-2">
+                <div class="search-group">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" name="search" value="{{ $search ?? '' }}"
+                           placeholder="Cari SKU / nama / kategori..."
+                           class="search-input" style="width:16rem;">
+                    <button type="submit" class="search-btn">Cari</button>
+                </div>
+                @if(!empty($search))
+                    <a href="{{ route('inventory.kartu-stok.index') }}"
+                       class="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                        <i class="fa-solid fa-xmark text-[10px]"></i> Reset
+                    </a>
+                @endif
+            </form>
         </div>
     </div>
 
@@ -45,10 +57,18 @@
                                     {{ number_format($stok) }}
                                 </td>
                                 <td>
-                                    @if($aman)
-                                        <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Aman</span>
+                                    @if($stok == 0)
+                                        <span class="badge badge-danger">
+                                            <i class="fa-solid fa-circle-xmark text-[9px]"></i> Habis
+                                        </span>
+                                    @elseif($aman)
+                                        <span class="badge badge-success">
+                                            <i class="fa-solid fa-circle-check text-[9px]"></i> Aman
+                                        </span>
                                     @else
-                                        <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Reorder</span>
+                                        <span class="badge badge-warning">
+                                            <i class="fa-solid fa-arrow-down text-[9px]"></i> Reorder
+                                        </span>
                                     @endif
                                 </td>
                                 <td class="text-right">
@@ -74,12 +94,4 @@
     </div>
 
 </div>
-<script>
-document.getElementById('live-search')?.addEventListener('input', function () {
-    const q = this.value.toLowerCase().trim();
-    document.querySelectorAll('.stok-row').forEach(r => {
-        r.style.display = (r.dataset.search||'').includes(q) ? '' : 'none';
-    });
-});
-</script>
 @endsection

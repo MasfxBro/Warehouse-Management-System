@@ -29,8 +29,8 @@ class OutboundController extends Controller
             $query->where('Customer_ID', $request->customer_id);
         }
 
-        // Tabel 1 — Picking Task Queue (belum complete) — tampilkan semua (biasanya sedikit)
-        $pickingQueue = (clone $query)->where('picking_status', 'not_complete')->get();
+        // Tabel 1 — Picking Task Queue (belum complete) — paginate 15
+        $pickingQueue = (clone $query)->where('picking_status', 'not_complete')->paginate(15, ['*'], 'queue_page')->withQueryString();
 
         // Tabel 2 — Riwayat Outbound (sudah complete) — paginate 15
         $riwayat = (clone $query)->where('picking_status', 'complete')->paginate(15)->withQueryString();
@@ -221,8 +221,13 @@ class OutboundController extends Controller
             abort(403, 'Surat Jalan hanya dapat dicetak setelah Picking List selesai.');
         }
 
-        $pdf = Pdf::loadView('outbound.surat-jalan-pdf', compact('outbound'));
-        $pdf->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView('outbound.surat-jalan-pdf', compact('outbound'))
+            ->setPaper('a4', 'portrait')
+            ->setOption('margin_top', 0)
+            ->setOption('margin_bottom', 0)
+            ->setOption('margin_left', 0)
+            ->setOption('margin_right', 0)
+            ->setOption('isRemoteEnabled', false);
 
         $filename = 'Surat_Jalan_' . $outbound->No_Shipping . '.pdf';
         return $pdf->download($filename);
