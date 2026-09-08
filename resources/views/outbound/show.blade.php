@@ -4,6 +4,7 @@
 @section('page_heading', 'Detail Outbound - ' . $outbound->No_Shipping)
 
 @section('content')
+@php $details = $outbound->isCancelled() ? $outbound->allOutboundDetails : $outbound->outboundDetails; @endphp
 <div class="space-y-5">
 
     <div class="flex items-center justify-between">
@@ -18,7 +19,9 @@
         <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div class="space-y-2">
                 <div class="flex items-center gap-2 flex-wrap">
-                    @if($outbound->isComplete())
+                    @if($outbound->isCancelled())
+                        <span class="badge badge-danger"><i class="fa-solid fa-ban"></i> Dibatalkan</span>
+                    @elseif($outbound->isComplete())
                         <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Picking Selesai</span>
                     @else
                         <span class="badge badge-warning"><i class="fa-solid fa-clock"></i> Menunggu Picking</span>
@@ -37,7 +40,7 @@
 
             {{-- CTA --}}
             <div class="flex flex-col gap-2 shrink-0">
-                @if(!$outbound->isComplete())
+                @if(!$outbound->isComplete() && !$outbound->isCancelled())
                     <a href="{{ route('outbound.picking-list', $outbound->Outbound_ID) }}"
                        class="btn btn-outline btn-lg gap-2 border-amber-300 text-amber-700 hover:bg-amber-50">
                         <i class="fa-solid fa-clipboard-list"></i> Lihat Picking List
@@ -60,6 +63,12 @@
             <div class="mt-4 pt-4 border-t border-surface-low">
                 <p class="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">Catatan</p>
                 <p class="text-sm text-slate-700 bg-surface rounded-lg px-4 py-2.5">{{ $outbound->Catatan }}</p>
+            </div>
+        @endif
+        @if($outbound->isCancelled())
+            <div class="mt-4 p-4 rounded-lg bg-red-50 border border-red-200 text-xs text-red-800">
+                <strong>Dibatalkan {{ $outbound->Cancelled_At?->format('d/m/Y H:i') }} oleh {{ $outbound->cancelledBy->name ?? '-' }}</strong>
+                <p class="mt-1">{{ $outbound->Cancellation_Reason }}</p>
             </div>
         @endif
     </div>
@@ -90,17 +99,17 @@
             <h3 class="wms-card-title flex items-center gap-2">
                 <i class="fa-solid fa-list text-secondary"></i> Detail Barang Dikirim
             </h3>
-            <span class="text-xs text-slate-400">{{ $outbound->outboundDetails->count() }} baris</span>
+            <span class="text-xs text-slate-400">{{ $details->count() }} baris</span>
         </div>
         <div class="overflow-x-auto">
-            @if($outbound->outboundDetails->count() > 0)
+            @if($details->count() > 0)
                 <table class="wms-table">
                     <thead><tr>
                         <th>No</th><th>SKU</th><th>Nama Barang</th>
-                        <th>Lokasi Rak</th><th class="text-right">Qty Keluar</th>
+                        <th>Lokasi Rak</th><th>Satuan</th><th class="text-right">Qty Keluar</th>
                     </tr></thead>
                     <tbody>
-                        @foreach($outbound->outboundDetails as $i => $detail)
+                        @foreach($details as $i => $detail)
                             <tr>
                                 <td class="font-mono text-slate-400">{{ $i + 1 }}</td>
                                 <td class="font-mono font-semibold text-secondary">
@@ -110,6 +119,7 @@
                                 </td>
                                 <td class="font-medium text-slate-900">{{ $detail->masterBarang->Nama ?? '-' }}</td>
                                 <td class="font-mono text-slate-600">{{ $detail->rackLocation->Kode_Rak ?? '-' }}</td>
+                                <td class="font-mono text-slate-600">{{ $detail->masterBarang->Satuan ?? 'PCS' }}</td>
                                 <td class="text-right font-mono font-bold text-on-error-container">
                                     -{{ number_format($detail->Qty) }}
                                 </td>
@@ -118,9 +128,8 @@
                     </tbody>
                     <tfoot class="bg-surface border-t border-[#e2e8f0]">
                         <tr>
-                            <td colspan="4" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Total Qty Keluar</td>
-                            <td class="px-4 py-3 text-right font-mono font-black text-slate-900">
-                                -{{ number_format($outbound->outboundDetails->sum('Qty')) }}
+                            <td colspan="6" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                {{ $details->count() }} baris lokasi pengambilan
                             </td>
                         </tr>
                     </tfoot>
@@ -128,6 +137,20 @@
             @endif
         </div>
     </div>
+
+    @if(auth()->user()->isAdmin() && ! $outbound->isCancelled())
+        <div class="wms-card p-5 border border-red-200">
+            <h3 class="text-sm font-bold text-red-700 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Koreksi Transaksi</h3>
+            <p class="text-xs text-slate-500 mb-3">Pembatalan melepas reservasi atau mengembalikan stok transaksi selesai. Nomor SJ dan riwayat tetap tersimpan.</p>
+            <form action="{{ route('outbound.cancel', $outbound->Outbound_ID) }}" method="POST" class="flex flex-col md:flex-row gap-3">
+                @csrf
+                <textarea name="reason" required minlength="10" maxlength="500" rows="2" class="wms-textarea flex-1" placeholder="Tuliskan alasan pembatalan secara jelas..."></textarea>
+                <button type="submit" onclick="return confirm('Yakin membatalkan transaksi outbound ini?')" class="btn btn-danger gap-2 self-end">
+                    <i class="fa-solid fa-ban"></i> Batalkan Outbound
+                </button>
+            </form>
+        </div>
+    @endif
 
 </div>
 @endsection

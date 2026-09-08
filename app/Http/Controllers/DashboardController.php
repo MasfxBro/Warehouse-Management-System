@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MasterBarang;
 use App\Models\InboundTransaction;
+use App\Models\MasterBarang;
 use App\Models\OutboundTransaction;
-use App\Models\InboundDetail;
-use App\Models\OutboundDetail;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -23,35 +22,41 @@ class DashboardController extends Controller
         $stats = Cache::remember('dashboard_stats', 120, function () {
             $items = MasterBarang::withSum('inboundDetails as inbound_qty', 'Qty')
                 ->withSum('outboundDetails as outbound_qty', 'Qty')
+                ->withSum('completedOutboundDetails as completed_outbound_qty', 'Qty')
+                ->withSum('reservedOutboundDetails as reserved_qty', 'Qty')
                 ->get()
                 ->map(function ($item) {
-                    $item->computed_stok = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+                    $item->computed_stok = max(0, (int) ($item->inbound_qty ?? 0) - (int) ($item->outbound_qty ?? 0));
+                    $item->physical_stock = max(0, (int) ($item->inbound_qty ?? 0) - (int) ($item->completed_outbound_qty ?? 0));
+
                     return $item;
                 });
 
             return [
-                'totalSku'      => $items->count(),
-                'totalStok'     => $items->sum('computed_stok'),
-                'nilaiGudang'   => $items->sum(fn($item) => $item->computed_stok * $item->harga),
+                'totalSku' => $items->count(),
+                'totalStok' => $items->sum('physical_stock'),
+                'totalReserved' => $items->sum(fn ($item) => (int) ($item->reserved_qty ?? 0)),
+                'nilaiGudang' => $items->sum(fn ($item) => $item->physical_stock * $item->harga),
             ];
         });
 
         // --- Critical Stock — paginated 10 per halaman (tidak di-cache karena butuh page param) ---
-        $lowStockPage    = max(1, (int) $request->query('low_page', 1));
+        $lowStockPage = max(1, (int) $request->query('low_page', 1));
         $lowStockPerPage = 10;
 
         $allLowStock = MasterBarang::withSum('inboundDetails as inbound_qty', 'Qty')
             ->withSum('outboundDetails as outbound_qty', 'Qty')
             ->get()
             ->map(function ($item) {
-                $item->computed_stok = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+                $item->computed_stok = max(0, (int) ($item->inbound_qty ?? 0) - (int) ($item->outbound_qty ?? 0));
+
                 return $item;
             })
-            ->filter(fn($item) => $item->computed_stok <= $item->Min_Stok)
+            ->filter(fn ($item) => $item->computed_stok <= $item->Min_Stok)
             ->sortBy('computed_stok')
             ->values();
 
-        $lowStockItems = new \Illuminate\Pagination\LengthAwarePaginator(
+        $lowStockItems = new LengthAwarePaginator(
             $allLowStock->forPage($lowStockPage, $lowStockPerPage),
             $allLowStock->count(),
             $lowStockPerPage,
@@ -64,22 +69,25 @@ class DashboardController extends Controller
 
         // --- Periode filter untuk stat card transaksi ---
         $periodTrx = $request->query('period_trx', 'hari_ini');
-        $cacheKeyTrx = 'trx_count_' . $periodTrx . '_' . $today;
+        if (! in_array($periodTrx, ['hari_ini', '7_hari', '1_bulan', '1_tahun', 'semua'], true)) {
+            $periodTrx = 'hari_ini';
+        }
+        $cacheKeyTrx = 'trx_count_'.$periodTrx.'_'.$today;
 
-        [$inboundCount, $outboundCount] = Cache::remember($cacheKeyTrx, 120, function () use ($periodTrx, $today) {
-            $inboundQuery  = InboundTransaction::query();
-            $outboundQuery = OutboundTransaction::query();
+        [$inboundCount, $outboundCount] = Cache::remember($cacheKeyTrx, 120, function () use ($periodTrx) {
+            $inboundQuery = InboundTransaction::where('transaction_status', 'active');
+            $outboundQuery = OutboundTransaction::where('transaction_status', 'active');
 
             match ($periodTrx) {
-                '7_hari'  => [$inboundQuery->whereDate('Tanggal', '>=', now()->subDays(6)->toDateString()),
-                              $outboundQuery->whereDate('Tanggal', '>=', now()->subDays(6)->toDateString())],
+                '7_hari' => [$inboundQuery->whereDate('Tanggal', '>=', now()->subDays(6)->toDateString()),
+                    $outboundQuery->whereDate('Tanggal', '>=', now()->subDays(6)->toDateString())],
                 '1_bulan' => [$inboundQuery->whereDate('Tanggal', '>=', now()->subDays(29)->toDateString()),
-                              $outboundQuery->whereDate('Tanggal', '>=', now()->subDays(29)->toDateString())],
+                    $outboundQuery->whereDate('Tanggal', '>=', now()->subDays(29)->toDateString())],
                 '1_tahun' => [$inboundQuery->whereDate('Tanggal', '>=', now()->subYear()->toDateString()),
-                              $outboundQuery->whereDate('Tanggal', '>=', now()->subYear()->toDateString())],
-                'semua'   => [$inboundQuery, $outboundQuery],
-                default   => [$inboundQuery->whereDate('Tanggal', now()->toDateString()),
-                              $outboundQuery->whereDate('Tanggal', now()->toDateString())],
+                    $outboundQuery->whereDate('Tanggal', '>=', now()->subYear()->toDateString())],
+                'semua' => [$inboundQuery, $outboundQuery],
+                default => [$inboundQuery->whereDate('Tanggal', now()->toDateString()),
+                    $outboundQuery->whereDate('Tanggal', now()->toDateString())],
             };
 
             return [$inboundQuery->count(), $outboundQuery->count()];
@@ -88,32 +96,38 @@ class DashboardController extends Controller
         // --- Picking Queue (cache 60 detik) ---
         $pendingOutbounds = Cache::remember('picking_queue', 60, function () {
             return OutboundTransaction::with('customer')
+                ->where('transaction_status', 'active')
                 ->where('picking_status', 'not_complete')
                 ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END")
                 ->limit(6)
                 ->get();
         });
-        $pendingCount = Cache::remember('picking_count', 60, fn() =>
-            OutboundTransaction::where('picking_status', 'not_complete')->count()
+        $pendingCount = Cache::remember('picking_count', 60, fn () => OutboundTransaction::where('transaction_status', 'active')
+            ->where('picking_status', 'not_complete')
+            ->count()
         );
 
         // --- Chart Data (cache 5 menit per period) ---
-        $period    = $request->query('period', 'seminggu_ini');
-        $chartData = Cache::remember('chart_' . $period, 300, fn() => $this->getChartData($period));
+        $period = $request->query('period', 'seminggu_ini');
+        if (! in_array($period, ['seminggu_ini', 'seminggu', 'sebulan', 'setahun'], true)) {
+            $period = 'seminggu_ini';
+        }
+        $chartData = Cache::remember('chart_'.$period, 300, fn () => $this->getChartData($period));
 
         return view('dashboard', [
-            'totalSku'          => $stats['totalSku'],
-            'totalStok'         => $stats['totalStok'],
-            'nilaiGudang'       => $stats['nilaiGudang'],
-            'lowStockItems'     => $lowStockItems,
-            'lowStockCount'     => $lowStockCount,
+            'totalSku' => $stats['totalSku'],
+            'totalStok' => $stats['totalStok'],
+            'totalReserved' => $stats['totalReserved'],
+            'nilaiGudang' => $stats['nilaiGudang'],
+            'lowStockItems' => $lowStockItems,
+            'lowStockCount' => $lowStockCount,
             'inboundTodayCount' => $inboundCount,
-            'outboundTodayCount'=> $outboundCount,
-            'periodTrx'         => $periodTrx,
-            'pendingOutbounds'  => $pendingOutbounds,
-            'pendingCount'      => $pendingCount,
-            'chartData'         => $chartData,
-            'period'            => $period,
+            'outboundTodayCount' => $outboundCount,
+            'periodTrx' => $periodTrx,
+            'pendingOutbounds' => $pendingOutbounds,
+            'pendingCount' => $pendingCount,
+            'chartData' => $chartData,
+            'period' => $period,
         ]);
     }
 
@@ -124,17 +138,17 @@ class DashboardController extends Controller
      */
     private function getChartData(string $period): array
     {
-        $labels       = [];
-        $inboundData  = [];
+        $labels = [];
+        $inboundData = [];
         $outboundData = [];
 
         if ($period === 'seminggu' || $period === '7days') {
             // 7 Hari Terakhir
             for ($i = 6; $i >= 0; $i--) {
-                $date    = now()->subDays($i)->toDateString();
+                $date = now()->subDays($i)->toDateString();
                 $labels[] = now()->subDays($i)->format('d M');
 
-                $inboundData[]  = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $date, $date);
+                $inboundData[] = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $date, $date);
                 $outboundData[] = $this->sumDetailByDate('outbound_details', 'outbound_transactions', $date, $date);
             }
         } elseif ($period === 'sebulan' || $period === 'this_month') {
@@ -142,38 +156,38 @@ class DashboardController extends Controller
             $daysInMonth = now()->daysInMonth;
             for ($day = 1; $day <= $daysInMonth; $day += 5) {
                 $start = now()->startOfMonth()->addDays($day - 1);
-                $end   = (clone $start)->addDays(4);
+                $end = (clone $start)->addDays(4);
                 if ($end->month !== now()->month) {
                     $end = now()->endOfMonth();
                 }
-                $labels[]       = $start->format('d') . '-' . $end->format('d M');
-                $inboundData[]  = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $start->toDateString(), $end->toDateString());
+                $labels[] = $start->format('d').'-'.$end->format('d M');
+                $inboundData[] = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $start->toDateString(), $end->toDateString());
                 $outboundData[] = $this->sumDetailByDate('outbound_details', 'outbound_transactions', $start->toDateString(), $end->toDateString());
             }
         } elseif ($period === 'setahun' || $period === 'this_year') {
             // Setahun (Jan–Des)
             for ($m = 1; $m <= 12; $m++) {
                 $start = Carbon::create(now()->year, $m, 1)->startOfMonth()->toDateString();
-                $end   = Carbon::create(now()->year, $m, 1)->endOfMonth()->toDateString();
-                $labels[]       = Carbon::create(now()->year, $m, 1)->format('M');
-                $inboundData[]  = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $start, $end);
+                $end = Carbon::create(now()->year, $m, 1)->endOfMonth()->toDateString();
+                $labels[] = Carbon::create(now()->year, $m, 1)->format('M');
+                $inboundData[] = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $start, $end);
                 $outboundData[] = $this->sumDetailByDate('outbound_details', 'outbound_transactions', $start, $end);
             }
         } else {
             // Default: Seminggu Ini (Senin–Minggu)
             $startOfWeek = now()->startOfWeek();
             for ($i = 0; $i < 7; $i++) {
-                $date     = (clone $startOfWeek)->addDays($i)->toDateString();
+                $date = (clone $startOfWeek)->addDays($i)->toDateString();
                 $labels[] = (clone $startOfWeek)->addDays($i)->format('D, d M');
 
-                $inboundData[]  = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $date, $date);
+                $inboundData[] = $this->sumDetailByDate('inbound_details', 'inbound_transactions', $date, $date);
                 $outboundData[] = $this->sumDetailByDate('outbound_details', 'outbound_transactions', $date, $date);
             }
         }
 
         return [
-            'labels'   => $labels,
-            'inbound'  => $inboundData,
+            'labels' => $labels,
+            'inbound' => $inboundData,
             'outbound' => $outboundData,
         ];
     }
@@ -199,6 +213,8 @@ class DashboardController extends Controller
 
         return (int) DB::table($detailTable)
             ->join($transactionTable, $fk, '=', $pk)
+            ->whereNull("{$detailTable}.deleted_at")
+            ->where("{$transactionTable}.transaction_status", 'active')
             ->whereBetween("{$transactionTable}.Tanggal", [$dateFrom, $dateTo])
             ->sum("{$detailTable}.Qty");
     }

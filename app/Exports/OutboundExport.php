@@ -3,9 +3,9 @@
 namespace App\Exports;
 
 use App\Models\OutboundTransaction;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
@@ -16,38 +16,43 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 class OutboundExport
 {
     private ?string $from;
+
     private ?string $to;
 
     public function __construct(?string $from = null, ?string $to = null)
     {
         $this->from = $from;
-        $this->to   = $to;
+        $this->to = $to;
     }
 
     public function download(): string
     {
-        $query = OutboundTransaction::with(['customer', 'outboundDetails.masterBarang', 'user'])
+        $query = OutboundTransaction::with(['customer', 'allOutboundDetails.masterBarang', 'user', 'practiceSession'])
             ->orderBy('Tanggal')
             ->orderBy('Outbound_ID');
 
-        if ($this->from) $query->whereDate('Tanggal', '>=', $this->from);
-        if ($this->to)   $query->whereDate('Tanggal', '<=', $this->to);
+        if ($this->from) {
+            $query->whereDate('Tanggal', '>=', $this->from);
+        }
+        if ($this->to) {
+            $query->whereDate('Tanggal', '<=', $this->to);
+        }
 
         $transactions = $query->get();
 
-        $spreadsheet = new Spreadsheet();
-        $sheet       = $spreadsheet->getActiveSheet();
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Laporan Outbound');
 
-        $headers = ['No. Shipping', 'Tanggal', 'Customer', 'Nama Penerima', 'SKU', 'Nama Barang', 'Qty Keluar', 'Status Picking', 'Dicatat Oleh'];
-        $cols    = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+        $headers = ['No. Shipping', 'Tanggal', 'Customer', 'Nama Penerima', 'SKU', 'Nama Barang', 'Qty Keluar', 'Satuan', 'Status Picking', 'Status Transaksi', 'Sesi Praktikum', 'Dicatat Oleh'];
+        $cols = range('A', 'L');
 
         foreach ($headers as $i => $h) {
-            $cell = $cols[$i] . '1';
+            $cell = $cols[$i].'1';
             $sheet->setCellValue($cell, $h);
             $sheet->getStyle($cell)->applyFromArray([
-                'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0058BE']],
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0058BE']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ]);
             $sheet->getColumnDimension($cols[$i])->setAutoSize(true);
@@ -55,7 +60,7 @@ class OutboundExport
 
         $row = 2;
         foreach ($transactions as $trx) {
-            foreach ($trx->outboundDetails as $detail) {
+            foreach ($trx->allOutboundDetails as $detail) {
                 $sheet->setCellValue("A{$row}", $trx->No_Shipping);
                 $sheet->setCellValue("B{$row}", $trx->Tanggal->format('d/m/Y'));
                 $sheet->setCellValue("C{$row}", $trx->customer->Nama ?? '-');
@@ -63,14 +68,18 @@ class OutboundExport
                 $sheet->setCellValue("E{$row}", $detail->SKU);
                 $sheet->setCellValue("F{$row}", $detail->masterBarang->Nama ?? '-');
                 $sheet->setCellValue("G{$row}", $detail->Qty);
-                $sheet->setCellValue("H{$row}", $trx->picking_status === 'complete' ? 'Complete' : 'Not Complete');
-                $sheet->setCellValue("I{$row}", $trx->user->name ?? '-');
+                $sheet->setCellValue("H{$row}", $detail->masterBarang->Satuan ?? 'PCS');
+                $sheet->setCellValue("I{$row}", $trx->picking_status === 'complete' ? 'Complete' : 'Not Complete');
+                $sheet->setCellValue("J{$row}", $trx->isCancelled() ? 'Dibatalkan' : 'Aktif');
+                $sheet->setCellValue("K{$row}", $trx->practiceSession->Nama ?? '-');
+                $sheet->setCellValue("L{$row}", $trx->user->name ?? '-');
                 $row++;
             }
         }
 
-        $tmpPath = sys_get_temp_dir() . '/outbound_' . now()->format('Ymd_His') . '.xlsx';
+        $tmpPath = sys_get_temp_dir().'/outbound_'.now()->format('Ymd_His').'.xlsx';
         (new Xlsx($spreadsheet))->save($tmpPath);
+
         return $tmpPath;
     }
 }

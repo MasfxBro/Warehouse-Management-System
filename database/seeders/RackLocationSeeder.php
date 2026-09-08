@@ -18,15 +18,15 @@ class RackLocationSeeder extends Seeder
     {
         $aisles = ['A', 'B', 'C', 'D'];
         $levels = ['1', '2', '3', '4', '5'];
-        $seq    = 1;
+        $seq = 1;
 
         foreach ($aisles as $aisle) {
             foreach ($levels as $level) {
                 RackLocation::create([
-                    'Kode_Rak'  => sprintf('R-%s%s-%02d', $aisle, $level, $seq),
-                    'Aisle'     => $aisle,
-                    'Level'     => $level,
-                    'Kapasitas' => rand(100, 300),
+                    'Kode_Rak' => sprintf('R-%s%s-%02d', $aisle, $level, $seq),
+                    'Aisle' => $aisle,
+                    'Level' => $level,
+                    'Kapasitas' => 100 + (($seq * 37) % 201),
                 ]);
                 $seq++;
             }

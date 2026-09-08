@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\MasterBarang;
-use App\Models\RackLocation;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -37,16 +36,18 @@ class MasterBarangFactory extends Factory
 
         // SKU format: 3 huruf kapital kategori + dash + 5 digit angka, misal: ELK-00123
         $prefix = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $kategori), 0, 3));
-        $sku    = $prefix . '-' . $this->faker->unique()->numerify('#####');
+        $sku = $prefix.'-'.$this->faker->unique()->numerify('#####');
 
         return [
-            'SKU'        => $sku,
-            'Nama'       => $this->faker->words(3, true) . ' ' . $this->faker->word(),
-            'Kategori'   => $kategori,
-            'Min_Stok'   => $this->faker->numberBetween(5, 100),
+            'SKU' => $sku,
+            'Nama' => $this->faker->words(3, true).' '.$this->faker->word(),
+            'Kategori' => $kategori,
+            'Satuan' => $this->faker->randomElement(['PCS', 'Box', 'Unit', 'Pack']),
+            'Harga_Dasar' => $this->faker->numberBetween(10000, 5000000),
+            'Min_Stok' => $this->faker->numberBetween(5, 100),
             'Barcode_ID' => $this->faker->unique()->ean13(),
             // Rack_ID diisi oleh seeder agar menggunakan ID yang sudah ada
-            'Rack_ID'    => null,
+            'Rack_ID' => null,
         ];
     }
 

@@ -21,24 +21,24 @@ return new class extends Migration
 
             $table->uuid('Outbound_ID')->comment('Referensi ke transaksi outbound header');
             $table->foreign('Outbound_ID')
-                  ->references('Outbound_ID')
-                  ->on('outbound_transactions')
-                  ->onDelete('cascade')
-                  ->onUpdate('cascade');
+                ->references('Outbound_ID')
+                ->on('outbound_transactions')
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
 
             $table->string('SKU', 50)->comment('Kode barang yang dikirim');
             $table->foreign('SKU')
-                  ->references('SKU')
-                  ->on('master_barang')
-                  ->onDelete('restrict')
-                  ->onUpdate('cascade');
+                ->references('SKU')
+                ->on('master_barang')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
 
             $table->uuid('Rack_ID')->comment('Rak sumber pengambilan barang untuk dikirim');
             $table->foreign('Rack_ID')
-                  ->references('Rack_ID')
-                  ->on('rack_locations')
-                  ->onDelete('restrict')
-                  ->onUpdate('cascade');
+                ->references('Rack_ID')
+                ->on('rack_locations')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
 
             // Jumlah unit barang yang dikirim
             $table->unsignedInteger('Qty')->comment('Jumlah unit barang yang dikirim');

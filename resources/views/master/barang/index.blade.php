@@ -13,7 +13,8 @@
             <strong class="font-bold text-slate-900 text-sm">Halaman Read-Only — Data Otomatis</strong>
             <p class="text-slate-600 mt-0.5">
                 Inventori ini diakumulasi otomatis dari transaksi <strong>Inbound</strong>.
-                Stok dihitung secara real-time (inbound − outbound). Data tidak dapat diedit langsung.
+                Stok dihitung real-time. <strong>Fisik</strong> masih berada di gudang, <strong>reservasi</strong> menunggu picking,
+                dan <strong>tersedia</strong> dapat dipakai transaksi baru. Data tidak dapat diedit langsung.
             </p>
         </div>
     </div>
@@ -60,9 +61,12 @@
                             <th>Kode SKU</th>
                             <th>Nama Barang</th>
                             <th>Kategori</th>
-                            <th class="text-right">Total Stok</th>
+                            <th>Satuan</th>
+                            <th class="text-right">Stok Fisik</th>
+                            <th class="text-right">Reservasi</th>
+                            <th class="text-right">Tersedia</th>
                             <th class="text-right">Min. Stok</th>
-                            <th class="text-right">Harga Satuan</th>
+                            <th class="text-right">Harga Dasar</th>
                             <th class="text-right">Total Value</th>
                             <th>Status</th>
                             <th class="text-right">Aksi</th>
@@ -71,21 +75,28 @@
                     <tbody>
                         @foreach($items as $item)
                             @php
-                                $stok   = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
-                                $isSafe = $stok > $item->Min_Stok;
+                                $stokTersedia = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+                                $stokFisik = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->completed_outbound_qty ?? 0));
+                                $reservasi = (int)($item->reserved_qty ?? 0);
+                                $isSafe = $stokTersedia > $item->Min_Stok;
                             @endphp
                             <tr>
                                 <td class="font-mono font-semibold text-[#0058be]">{{ $item->SKU }}</td>
                                 <td class="font-medium text-slate-900">{{ $item->Nama }}</td>
                                 <td><span class="badge badge-neutral">{{ $item->Kategori }}</span></td>
+                                <td class="font-mono text-slate-600">{{ $item->Satuan }}</td>
                                 <td class="text-right font-mono font-bold {{ $isSafe ? 'text-slate-900' : 'text-[#93000a]' }}">
-                                    {{ number_format($stok) }}
+                                    {{ number_format($stokFisik) }}
                                 </td>
+                                <td class="text-right font-mono text-amber-700">{{ number_format($reservasi) }}</td>
+                                <td class="text-right font-mono font-bold {{ $isSafe ? 'text-slate-900' : 'text-[#93000a]' }}">{{ number_format($stokTersedia) }}</td>
                                 <td class="text-right font-mono text-slate-500">{{ number_format($item->Min_Stok) }}</td>
                                 <td class="text-right font-mono text-slate-700">Rp {{ number_format($item->harga, 0, ',', '.') }}</td>
-                                <td class="text-right font-mono font-bold text-slate-900">Rp {{ number_format($stok * $item->harga, 0, ',', '.') }}</td>
+                                <td class="text-right font-mono font-bold text-slate-900">Rp {{ number_format($stokFisik * $item->harga, 0, ',', '.') }}</td>
                                 <td>
-                                    @if($isSafe)
+                                    @if($stokTersedia == 0)
+                                        <span class="badge badge-danger"><i class="fa-solid fa-circle-xmark text-[9px]"></i> Habis</span>
+                                    @elseif($isSafe)
                                         <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Aman</span>
                                     @else
                                         <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Reorder</span>

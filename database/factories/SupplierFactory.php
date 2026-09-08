@@ -18,8 +18,8 @@ class SupplierFactory extends Factory
     public function definition(): array
     {
         return [
-            'Nama'   => $this->faker->company(),
-            'Kontak' => $this->faker->optional()->phoneNumber() . ' / ' . $this->faker->optional()->email(),
+            'Nama' => $this->faker->company(),
+            'Kontak' => $this->faker->optional()->phoneNumber().' / '.$this->faker->optional()->email(),
         ];
     }
 }

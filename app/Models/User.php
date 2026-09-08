@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use Carbon\Carbon;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -14,18 +16,18 @@ use Illuminate\Notifications\Notifiable;
  * Model bawaan Laravel yang diperluas dengan kolom `role` menggunakan Enum UserRole.
  * User memiliki relasi ke transaksi inbound dan outbound yang diproses.
  *
- * @property int         $id
- * @property string      $name
- * @property string      $email
- * @property \Carbon\Carbon|null $email_verified_at
- * @property string      $password
- * @property UserRole    $role
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property int $id
+ * @property string $name
+ * @property string $email
+ * @property Carbon|null $email_verified_at
+ * @property string $password
+ * @property UserRole $role
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -54,8 +56,8 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'role'              => UserRole::class,
+            'password' => 'hashed',
+            'role' => UserRole::class,
         ];
     }
 
@@ -77,22 +79,6 @@ class User extends Authenticatable
     public function isUser(): bool
     {
         return $this->role === UserRole::User;
-    }
-
-    /**
-     * Alias helper untuk isUser (Siswa).
-     */
-    public function isSiswa(): bool
-    {
-        return $this->isUser();
-    }
-
-    /**
-     * Alias helper untuk isUser (Operator).
-     */
-    public function isOperator(): bool
-    {
-        return $this->isUser();
     }
 
     // =========================================================

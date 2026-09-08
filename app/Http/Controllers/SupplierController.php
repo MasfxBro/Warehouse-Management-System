@@ -20,10 +20,10 @@ class SupplierController extends Controller
         if ($search) {
             $searchLower = strtolower($search);
             $query->where(function ($q) use ($searchLower) {
-                $q->whereRaw("LOWER(\"Nama\") LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(COALESCE(\"No_Kontak\", '')) LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(COALESCE(\"Email\", '')) LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(COALESCE(\"Alamat\", '')) LIKE ?", ['%' . $searchLower . '%']);
+                $q->whereRaw('LOWER("Nama") LIKE ?', ['%'.$searchLower.'%'])
+                    ->orWhereRaw("LOWER(COALESCE(\"No_Kontak\", '')) LIKE ?", ['%'.$searchLower.'%'])
+                    ->orWhereRaw("LOWER(COALESCE(\"Email\", '')) LIKE ?", ['%'.$searchLower.'%'])
+                    ->orWhereRaw("LOWER(COALESCE(\"Alamat\", '')) LIKE ?", ['%'.$searchLower.'%']);
             });
         }
 
@@ -40,23 +40,25 @@ class SupplierController extends Controller
         $supplier = Supplier::findOrFail($id);
 
         $request->validate([
-            'Nama'      => 'required|string|max:255',
+            'Nama' => 'required|string|max:255',
             'No_Kontak' => ['nullable', 'regex:/^\d*$/', 'max:20'],
-            'Email'     => ['nullable', 'string', 'max:255', function ($attr, $val, $fail) {
-                if ($val && !str_contains($val, '@')) $fail('Email harus mengandung karakter @.');
+            'Email' => ['nullable', 'string', 'max:255', function ($attr, $val, $fail) {
+                if ($val && ! str_contains($val, '@')) {
+                    $fail('Email harus mengandung karakter @.');
+                }
             }],
-            'Alamat'    => 'nullable|string|max:500',
+            'Alamat' => 'nullable|string|max:500',
         ], [
-            'Nama.required'       => 'Nama supplier wajib diisi.',
-            'No_Kontak.regex'     => 'No. Kontak hanya boleh berisi angka.',
+            'Nama.required' => 'Nama supplier wajib diisi.',
+            'No_Kontak.regex' => 'No. Kontak hanya boleh berisi angka.',
         ]);
 
         $supplier->update([
-            'Nama'      => $request->Nama,
+            'Nama' => $request->Nama,
             'No_Kontak' => $request->No_Kontak ?: null,
-            'Kontak'    => $request->No_Kontak ?: null,
-            'Email'     => $request->Email ?: null,
-            'Alamat'    => $request->Alamat ?: null,
+            'Kontak' => $request->No_Kontak ?: null,
+            'Email' => $request->Email ?: null,
+            'Alamat' => $request->Alamat ?: null,
         ]);
 
         return redirect()->route('master.supplier.index')

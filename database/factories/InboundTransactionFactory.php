@@ -22,11 +22,11 @@ class InboundTransactionFactory extends Factory
     {
         return [
             // Format nomor receiving: RCV-2026-0001
-            'No_Receiving' => 'RCV-' . date('Y') . '-' . $this->faker->unique()->numerify('####'),
-            'Tanggal'      => $this->faker->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
+            'No_Receiving' => 'RCV-'.date('Y').'-'.$this->faker->unique()->numerify('####'),
+            'Tanggal' => $this->faker->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
             // Supplier_ID dan User_ID diisi oleh seeder menggunakan record yang sudah ada
-            'Supplier_ID'  => Supplier::inRandomOrder()->value('Supplier_ID'),
-            'User_ID'      => User::inRandomOrder()->value('id'),
+            'Supplier_ID' => Supplier::inRandomOrder()->value('Supplier_ID'),
+            'User_ID' => User::inRandomOrder()->value('id'),
         ];
     }
 
@@ -37,7 +37,7 @@ class InboundTransactionFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'Supplier_ID' => $supplierId,
-            'User_ID'     => $userId,
+            'User_ID' => $userId,
         ]);
     }
 }

@@ -6,9 +6,11 @@ use App\Models\Customer;
 use App\Models\MasterBarang;
 use App\Models\OutboundDetail;
 use App\Models\OutboundTransaction;
-use App\Models\RackLocation;
+use App\Models\PracticeSession;
 use App\Models\User;
+use App\Services\StockAllocationService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Seeder: OutboundSeeder
@@ -28,57 +30,83 @@ class OutboundSeeder extends Seeder
     {
         // Ambil data yang sudah ada di database
         $customerIds = Customer::pluck('Customer_ID')->toArray();
-        $userIds     = User::pluck('id')->toArray();
-        $skus        = MasterBarang::pluck('SKU')->toArray();
-        $rackIds     = RackLocation::pluck('Rack_ID')->toArray();
+        $userIds = User::pluck('id')->toArray();
+        $stockAllocation = app(StockAllocationService::class);
+        $practiceSessionId = PracticeSession::current()?->Practice_Session_ID;
 
         $transactionCount = 12;
-        $detailSeq        = 1;
+        $detailSeq = 1;
+        $createdTransactions = 0;
 
         $namaKurir = ['Budi Santoso', 'Andi Wijaya', 'Citra Lestari', 'Dian Permana'];
 
         for ($i = 1; $i <= $transactionCount; $i++) {
             // 70% transaksi sudah complete (picking selesai)
             $isComplete = $i <= (int) ($transactionCount * 0.7);
-            $totalQty   = rand(5, 60);
-            $priority   = $totalQty > 50 ? 'high' : ($totalQty > 10 ? 'normal' : 'decent');
-            $tanggal    = now()->subDays($transactionCount - $i + 1)->format('Y-m-d');
-            $dateKey    = date('Ymd', strtotime($tanggal));
+            $availableBarangs = MasterBarang::all()
+                ->filter(fn (MasterBarang $barang) => $barang->stok > 0)
+                ->sortBy('SKU')
+                ->values();
+
+            if ($availableBarangs->isNotEmpty()) {
+                $offset = ($i - 1) % $availableBarangs->count();
+                $availableBarangs = $availableBarangs
+                    ->slice($offset)
+                    ->concat($availableBarangs->slice(0, $offset))
+                    ->take(1 + (($i - 1) % 4))
+                    ->values();
+            }
+
+            if ($availableBarangs->isEmpty()) {
+                break;
+            }
+
+            $plannedItems = $availableBarangs->map(function (MasterBarang $barang, int $index) use ($i) {
+                return [
+                    'sku' => $barang->SKU,
+                    'qty' => min(20, $barang->stok, 1 + (($i * 7 + $index * 5) % 20)),
+                ];
+            });
+            $totalQty = $plannedItems->sum('qty');
+            $priority = $totalQty > 50 ? 'high' : ($totalQty > 10 ? 'normal' : 'decent');
+            $tanggal = now()->subDays($transactionCount - $i + 1)->format('Y-m-d');
+            $dateKey = date('Ymd', strtotime($tanggal));
 
             // Buat header transaksi outbound
             $transaction = OutboundTransaction::create([
-                'No_Shipping'    => sprintf('SJ-%s-%04d', $dateKey, $i),
-                'Tanggal'        => $tanggal,
-                'Customer_ID'    => $customerIds[($i - 1) % count($customerIds)],
-                'User_ID'        => $userIds[($i % count($userIds))],
+                'No_Shipping' => sprintf('SJ-%s-%04d', $dateKey, $i),
+                'Tanggal' => $tanggal,
+                'Customer_ID' => $customerIds[($i - 1) % count($customerIds)],
+                'User_ID' => $userIds[($i % count($userIds))],
                 'picking_status' => $isComplete ? 'complete' : 'not_complete',
-                'priority'       => $priority,
-                'Nama_Penerima'  => $namaKurir[$i % count($namaKurir)],
-                'Catatan'        => $i % 3 === 0 ? 'Pengiriman reguler sesuai PO' : null,
+                'priority' => $priority,
+                'Nama_Penerima' => $namaKurir[$i % count($namaKurir)],
+                'Catatan' => $i % 3 === 0 ? 'Pengiriman reguler sesuai PO' : null,
+                'Practice_Session_ID' => $practiceSessionId,
             ]);
+            $createdTransactions++;
 
-            // Setiap transaksi memiliki 1–4 detail baris barang
-            $detailCount  = rand(1, 4);
-            $selectedSkus = array_slice($skus, ($i * 5) % count($skus), $detailCount);
-            if (count($selectedSkus) < $detailCount) {
-                $selectedSkus = array_merge($selectedSkus, array_slice($skus, 0, $detailCount - count($selectedSkus)));
-            }
+            DB::table('document_counters')->updateOrInsert(
+                ['Document_Type' => 'SJ', 'Document_Date' => $tanggal],
+                ['Last_Number' => $i, 'created_at' => now(), 'updated_at' => now()]
+            );
 
-            foreach ($selectedSkus as $sku) {
-                OutboundDetail::create([
-                    'Outbound_ID' => $transaction->Outbound_ID,
-                    'SKU'         => $sku,
-                    'Rack_ID'     => $rackIds[($detailSeq - 1) % count($rackIds)],
-                    'Qty'         => rand(1, 80),
-                ]);
-
-                $detailSeq++;
+            foreach ($plannedItems as $item) {
+                foreach ($stockAllocation->allocate($item['sku'], $item['qty']) as $allocation) {
+                    OutboundDetail::create([
+                        'Outbound_ID' => $transaction->Outbound_ID,
+                        'SKU' => $item['sku'],
+                        'Rack_ID' => $allocation['rack_id'],
+                        'Qty' => $allocation['qty'],
+                    ]);
+                    $detailSeq++;
+                }
             }
         }
 
         $this->command->info(sprintf(
             '  OutboundSeeder: %d transaksi dan %d detail outbound berhasil dibuat.',
-            $transactionCount,
+            $createdTransactions,
             $detailSeq - 1
         ));
     }

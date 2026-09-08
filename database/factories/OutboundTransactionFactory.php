@@ -22,13 +22,13 @@ class OutboundTransactionFactory extends Factory
     {
         return [
             // Format nomor shipping: SHP-2026-0001
-            'No_Shipping'    => 'SHP-' . date('Y') . '-' . $this->faker->unique()->numerify('####'),
-            'Tanggal'        => $this->faker->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
+            'No_Shipping' => 'SHP-'.date('Y').'-'.$this->faker->unique()->numerify('####'),
+            'Tanggal' => $this->faker->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
             // Customer_ID dan User_ID diisi oleh seeder menggunakan record yang sudah ada
-            'Customer_ID'    => Customer::inRandomOrder()->value('Customer_ID'),
-            'User_ID'        => User::inRandomOrder()->value('id'),
+            'Customer_ID' => Customer::inRandomOrder()->value('Customer_ID'),
+            'User_ID' => User::inRandomOrder()->value('id'),
             // 80% transaksi sudah memiliki surat jalan, 20% belum diterbitkan
-            'No_Surat_Jalan' => $this->faker->optional(0.8)->bothify('SJ-' . date('Y') . '-####'),
+            'No_Surat_Jalan' => $this->faker->optional(0.8)->bothify('SJ-'.date('Y').'-####'),
         ];
     }
 
@@ -39,7 +39,7 @@ class OutboundTransactionFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'Customer_ID' => $customerId,
-            'User_ID'     => $userId,
+            'User_ID' => $userId,
         ]);
     }
 }

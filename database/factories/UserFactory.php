@@ -13,9 +13,9 @@ use Illuminate\Support\Str;
  *
  * Menghasilkan data dummy untuk tabel users.
  * Diperluas dari bawaan Laravel dengan penambahan kolom `role`.
- * Default role adalah 'operator' sesuai prinsip least privilege.
+ * Default role adalah 'user' (Operator/Siswa) sesuai prinsip least privilege.
  *
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -29,12 +29,12 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name'              => $this->faker->name(),
-            'email'             => $this->faker->unique()->safeEmail(),
+            'name' => $this->faker->name(),
+            'email' => $this->faker->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'password'          => static::$password ??= Hash::make('password'),
-            'role'              => UserRole::Operator->value,
-            'remember_token'    => Str::random(10),
+            'password' => static::$password ??= Hash::make('password'),
+            'role' => UserRole::User->value,
+            'remember_token' => Str::random(10),
         ];
     }
 
@@ -53,22 +53,12 @@ class UserFactory extends Factory
     }
 
     /**
-     * State: user dengan role manager.
-     */
-    public function manager(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'role' => UserRole::Manager->value,
-        ]);
-    }
-
-    /**
      * State: user dengan role operator.
      */
     public function operator(): static
     {
         return $this->state(fn (array $attributes) => [
-            'role' => UserRole::Operator->value,
+            'role' => UserRole::User->value,
         ]);
     }
 

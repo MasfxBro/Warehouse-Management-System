@@ -22,23 +22,23 @@ return new class extends Migration
         Schema::table('outbound_transactions', function (Blueprint $table) {
             // Status picking list
             $table->string('picking_status', 20)->default('not_complete')
-                  ->after('User_ID')
-                  ->comment('Status picking: not_complete | complete');
+                ->after('User_ID')
+                ->comment('Status picking: not_complete | complete');
 
             // Prioritas berdasarkan total qty
             $table->string('priority', 10)->default('decent')
-                  ->after('picking_status')
-                  ->comment('Prioritas: high (>50) | normal (11-50) | decent (1-10)');
+                ->after('picking_status')
+                ->comment('Prioritas: high (>50) | normal (11-50) | decent (1-10)');
 
             // Nama penerima / kurir
             $table->string('Nama_Penerima', 255)->nullable()
-                  ->after('priority')
-                  ->comment('Nama kurir atau penerima barang');
+                ->after('priority')
+                ->comment('Nama kurir atau penerima barang');
 
             // Catatan outbound
             $table->text('Catatan')->nullable()
-                  ->after('Nama_Penerima')
-                  ->comment('Catatan tambahan untuk transaksi outbound');
+                ->after('Nama_Penerima')
+                ->comment('Catatan tambahan untuk transaksi outbound');
         });
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\UnitNormalizer;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,14 +15,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Merepresentasikan data master barang/produk yang dikelola di gudang.
  * Primary Key adalah SKU (string) — bukan auto-increment.
  *
- * @property string      $SKU
- * @property string      $Nama
- * @property string      $Kategori
- * @property int         $Min_Stok
+ * @property string $SKU
+ * @property string $Nama
+ * @property string $Kategori
+ * @property int $Min_Stok
  * @property string|null $Barcode_ID
- * @property int|null    $Rack_ID
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property int|null $Rack_ID
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class MasterBarang extends Model
 {
@@ -53,6 +55,8 @@ class MasterBarang extends Model
         'SKU',
         'Nama',
         'Kategori',
+        'Satuan',
+        'Harga_Dasar',
         'Min_Stok',
         'Barcode_ID',
         'Rack_ID',
@@ -63,6 +67,7 @@ class MasterBarang extends Model
      */
     protected $casts = [
         'Min_Stok' => 'integer',
+        'Harga_Dasar' => 'integer',
     ];
 
     // =========================================================
@@ -80,21 +85,25 @@ class MasterBarang extends Model
         // Jika relasi sudah eager-loaded, gunakan collection langsung (O(1))
         // Jika belum, baru query DB — fallback aman tapi hindari di loop
         if ($this->relationLoaded('inboundDetails') && $this->relationLoaded('outboundDetails')) {
-            $inbound  = $this->inboundDetails->sum('Qty');
+            $inbound = $this->inboundDetails->sum('Qty');
             $outbound = $this->outboundDetails->sum('Qty');
         } else {
-            $inbound  = $this->inboundDetails()->sum('Qty');
+            $inbound = $this->inboundDetails()->sum('Qty');
             $outbound = $this->outboundDetails()->sum('Qty');
         }
+
         return max(0, $inbound - $outbound);
     }
 
-    /**
-     * Accessor untuk harga barang per unit (default: Rp 50.000).
-     */
+    /** Harga tetap dari penerimaan pertama barang. */
     public function getHargaAttribute(): int
     {
-        return 50000;
+        return (int) $this->Harga_Dasar;
+    }
+
+    public function setSatuanAttribute(?string $value): void
+    {
+        $this->attributes['Satuan'] = UnitNormalizer::normalize($value);
     }
 
     /**
@@ -103,6 +112,16 @@ class MasterBarang extends Model
     public function getNilaiBarangAttribute(): int
     {
         return $this->stok * $this->harga;
+    }
+
+    public function getStokFisikAttribute(): int
+    {
+        return max(0, $this->inboundDetails()->sum('Qty') - $this->completedOutboundDetails()->sum('Qty'));
+    }
+
+    public function getStokDireservasiAttribute(): int
+    {
+        return (int) $this->reservedOutboundDetails()->sum('Qty');
     }
 
     // =========================================================
@@ -131,5 +150,21 @@ class MasterBarang extends Model
     public function outboundDetails(): HasMany
     {
         return $this->hasMany(OutboundDetail::class, 'SKU', 'SKU');
+    }
+
+    public function completedOutboundDetails(): HasMany
+    {
+        return $this->hasMany(OutboundDetail::class, 'SKU', 'SKU')
+            ->whereHas('outboundTransaction', fn ($query) => $query
+                ->where('transaction_status', 'active')
+                ->where('picking_status', 'complete'));
+    }
+
+    public function reservedOutboundDetails(): HasMany
+    {
+        return $this->hasMany(OutboundDetail::class, 'SKU', 'SKU')
+            ->whereHas('outboundTransaction', fn ($query) => $query
+                ->where('transaction_status', 'active')
+                ->where('picking_status', 'not_complete'));
     }
 }

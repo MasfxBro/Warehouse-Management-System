@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,25 +10,26 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InboundDetail extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUuidPrimaryKey, SoftDeletes;
 
-    protected $table      = 'inbound_details';
+    protected $table = 'inbound_details';
+
     protected $primaryKey = 'Detail_ID';
-    public    $incrementing = false;
-    protected $keyType    = 'string';
 
-    protected $fillable = ['Inbound_ID', 'SKU', 'Rack_ID', 'Qty', 'No_Resi_Supplier', 'Batch'];
+    public $incrementing = false;
 
-    protected $casts = ['Qty' => 'integer'];
+    protected $keyType = 'string';
 
-    protected static function boot(): void
+    protected $fillable = ['Inbound_ID', 'SKU', 'Rack_ID', 'Qty', 'Harga_Satuan', 'No_Resi_Supplier', 'Batch'];
+
+    protected $casts = [
+        'Qty' => 'integer',
+        'Harga_Satuan' => 'integer',
+    ];
+
+    public function getSubtotalAttribute(): int
     {
-        parent::boot();
-        static::creating(function ($model) {
-            if (empty($model->{$model->getKeyName()})) {
-                $model->{$model->getKeyName()} = (string) \Illuminate\Support\Str::orderedUuid();
-            }
-        });
+        return $this->Qty * $this->Harga_Satuan;
     }
 
     public function inboundTransaction(): BelongsTo

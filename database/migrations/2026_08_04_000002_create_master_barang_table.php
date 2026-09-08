@@ -34,10 +34,10 @@ return new class extends Migration
             // FK ke rack_locations — lokasi default penyimpanan barang
             $table->uuid('Rack_ID')->nullable()->comment('Lokasi default rak penyimpanan');
             $table->foreign('Rack_ID')
-                  ->references('Rack_ID')
-                  ->on('rack_locations')
-                  ->onDelete('set null')
-                  ->onUpdate('cascade');
+                ->references('Rack_ID')
+                ->on('rack_locations')
+                ->onDelete('set null')
+                ->onUpdate('cascade');
 
             $table->timestamps();
 

@@ -116,11 +116,22 @@
             <div class="flex items-center justify-between">
                 <p class="text-[11px] font-bold uppercase tracking-widest text-slate-400">Foto Rak</p>
                 @if(auth()->user()->isAdmin())
-                    <button type="button" onclick="openFotoModal()"
-                            class="btn btn-outline btn-sm gap-1">
-                        <i class="fa-solid fa-camera text-[10px]"></i>
-                        {{ $rack->foto_path ? 'Ganti Foto' : 'Upload Foto' }}
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="openFotoModal()"
+                                class="btn btn-outline btn-sm gap-1">
+                            <i class="fa-solid fa-camera text-[10px]"></i>
+                            {{ $rack->foto_path ? 'Ganti Foto' : 'Upload Foto' }}
+                        </button>
+                        @if($rack->foto_path)
+                            <form action="{{ route('master.rak.hapus-foto', $rack->Rack_ID) }}" method="POST"
+                                  id="form-hapus-foto">
+                                @csrf @method('DELETE')
+                            </form>
+                            <button type="button" onclick="confirmHapusFoto()"
+                                    class="btn btn-danger btn-sm gap-1">
+                                <i class="fa-solid fa-trash text-[10px]"></i> Hapus Foto
+                            </button>                        @endif
+                    </div>
                 @endif
             </div>
 
@@ -165,7 +176,10 @@
                             <th>SKU</th>
                             <th>Nama Barang</th>
                             <th>Kategori</th>
-                            <th class="text-right">Stok di Rak</th>
+                            <th>Satuan</th>
+                            <th class="text-right">Fisik</th>
+                            <th class="text-right">Reservasi</th>
+                            <th class="text-right">Tersedia</th>
                             <th class="text-right">Min. Stok</th>
                             <th class="text-right">Pindah ke Rak</th>
                         </tr>
@@ -176,14 +190,17 @@
                                 <td class="font-mono font-bold text-secondary">{{ $barang->SKU }}</td>
                                 <td class="font-medium text-slate-900">{{ $barang->Nama }}</td>
                                 <td><span class="badge badge-neutral">{{ $barang->Kategori }}</span></td>
-                                <td class="text-right font-mono font-bold {{ $barang->stok_di_rak > $barang->Min_Stok ? 'text-slate-900' : 'text-on-error-container' }}">
-                                    {{ number_format($barang->stok_di_rak) }}
+                                <td class="font-mono text-slate-600">{{ $barang->Satuan }}</td>
+                                <td class="text-right font-mono font-bold text-slate-900">
+                                    {{ number_format($barang->stok_di_rak) }} {{ $barang->Satuan }}
                                 </td>
+                                <td class="text-right font-mono text-amber-700">{{ number_format($barang->reserved_di_rak) }}</td>
+                                <td class="text-right font-mono font-bold {{ $barang->tersedia_di_rak > $barang->Min_Stok ? 'text-slate-900' : 'text-on-error-container' }}">{{ number_format($barang->tersedia_di_rak) }}</td>
                                 <td class="text-right font-mono text-slate-500">{{ number_format($barang->Min_Stok) }}</td>
                                 <td class="text-right">
-                                    @if($barang->stok_di_rak > 0)
+                                    @if($barang->tersedia_di_rak > 0)
                                         <button type="button"
-                                                onclick="openPindahModal('{{ $barang->SKU }}', '{{ addslashes($barang->Nama) }}', {{ $barang->stok_di_rak }})"
+                                                onclick="openPindahModal('{{ $barang->SKU }}', {{ Js::from($barang->Nama) }}, {{ $barang->tersedia_di_rak }}, {{ Js::from($barang->Satuan) }})"
                                                 class="btn btn-outline btn-sm gap-1">
                                             <i class="fa-solid fa-right-left"></i> Pindah
                                         </button>
@@ -318,10 +335,17 @@
         <form action="{{ route('master.rak.upload-foto', $rack->Rack_ID) }}" method="POST"
               enctype="multipart/form-data" class="modal-body" id="form-upload-foto" novalidate>
             @csrf
+            {{-- Error dari server (validasi Laravel) --}}
+            @if($errors->has('foto'))
+                <div class="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2.5 text-[11px]">
+                    <i class="fa-solid fa-triangle-exclamation text-sm shrink-0 mt-0.5"></i>
+                    <span>{{ $errors->first('foto') }}</span>
+                </div>
+            @endif
             <div>
                 <label class="wms-label">Pilih Foto <span class="text-red-500">*</span></label>
                 <input type="file" name="foto" id="input-foto" accept="image/jpeg,image/jpg,image/png,image/webp"
-                       class="wms-input p-2 cursor-pointer" required>
+                       class="wms-input p-2 cursor-pointer">
                 <p class="text-[10px] text-slate-400 mt-1">Format: JPG, PNG, WebP. Maks. 2 MB.</p>
                 <p id="err-input-foto" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
                     <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Pilih file foto terlebih dahulu.
@@ -333,7 +357,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" onclick="closeFotoModal()" class="btn btn-outline flex-1">Batal</button>
-                <button type="submit" class="btn btn-primary flex-1 gap-1.5">
+                <button type="button" onclick="submitFotoForm()" class="btn btn-primary flex-1 gap-1.5">
                     <i class="fa-solid fa-upload"></i> Upload
                 </button>
             </div>
@@ -373,6 +397,37 @@
     </div>
 </div>
 
+{{-- Modal Konfirmasi Hapus Foto --}}
+@if($rack->foto_path)
+<div id="modal-confirm-hapus-foto" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h4 class="modal-title flex items-center gap-2">
+                <i class="fa-solid fa-trash text-on-error-container"></i> Hapus Foto Rak
+            </h4>
+            <button type="button" onclick="toggleModal('modal-confirm-hapus-foto', false)"
+                    class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="bg-error-container border border-on-error-container/20 rounded-lg px-4 py-3 text-xs text-on-error-container flex items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation shrink-0 mt-0.5"></i>
+                <span>Foto rak <strong>{{ $rack->Kode_Rak }}</strong> akan dihapus permanen dan tidak dapat dikembalikan.</span>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="toggleModal('modal-confirm-hapus-foto', false)"
+                        class="btn btn-outline flex-1">Batal</button>
+                <button type="button" onclick="document.getElementById('form-hapus-foto').submit()"
+                        class="btn btn-danger flex-1 gap-1.5">
+                    <i class="fa-solid fa-trash"></i> Ya, Hapus Foto
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 @endif
 
 {{-- ================================================================
@@ -398,7 +453,7 @@
                 <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">Barang yang Dipindah</p>
                 <p id="pindah-nama" class="font-bold text-slate-900 text-sm"></p>
                 <p class="text-slate-500 mt-0.5">
-                    Stok tersedia di rak ini: <span id="pindah-stok" class="font-mono font-semibold text-secondary"></span> unit
+                    Stok tersedia di rak ini: <span id="pindah-stok" class="font-mono font-semibold text-secondary"></span> <span id="pindah-satuan">unit</span>
                 </p>
             </div>
 
@@ -463,14 +518,43 @@ function openEditRakModal()  { toggleModal('modal-edit-rak', true); }
 function closeEditRakModal() { toggleModal('modal-edit-rak', false); }
 function confirmDeleteRak()  { toggleModal('modal-confirm-hapus-rak', true); }
 function closeConfirmHapus() { toggleModal('modal-confirm-hapus-rak', false); }
-function openFotoModal()  { toggleModal('modal-upload-foto', true); }
+function confirmHapusFoto()  { toggleModal('modal-confirm-hapus-foto', true); }
+function openFotoModal()  {
+    toggleModal('modal-upload-foto', true);
+    // Daftarkan submit listener setelah modal terbuka supaya form pasti ada di DOM    var form = document.getElementById('form-upload-foto');
+    if (form && !form.dataset.listenerAttached) {
+        form.dataset.listenerAttached = '1';
+        form.addEventListener('submit', function(e) {
+            var input = document.getElementById('input-foto');
+            var errEl = document.getElementById('err-input-foto');
+            if (!input || !input.files || !input.files[0]) {
+                e.preventDefault();
+                if (errEl) { errEl.classList.remove('hidden'); errEl.classList.add('flex'); }
+            } else {
+                if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
+                // Submit langsung tanpa e.preventDefault()
+            }
+        });
+    }
+}
+function submitFotoForm() {
+    var input = document.getElementById('input-foto');
+    var errEl = document.getElementById('err-input-foto');
+    if (!input || !input.files || !input.files[0]) {
+        if (errEl) { errEl.classList.remove('hidden'); errEl.classList.add('flex'); }
+        return;
+    }
+    if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
+    document.getElementById('form-upload-foto').submit();
+}
 function closeFotoModal() { toggleModal('modal-upload-foto', false); document.getElementById('foto-preview-wrap').classList.add('hidden'); document.getElementById('err-input-foto').classList.add('hidden'); }
 @endif
 
-function openPindahModal(sku, nama, stok) {
+function openPindahModal(sku, nama, stok, satuan) {
     document.getElementById('pindah-sku').value = sku;
     document.getElementById('pindah-nama').textContent = sku + ' — ' + nama;
     document.getElementById('pindah-stok').textContent = stok;
+    document.getElementById('pindah-satuan').textContent = satuan;
     document.getElementById('pindah-qty').max = stok;
     document.getElementById('pindah-qty').value = 1;
     document.getElementById('select-rak-tujuan').value = '';
@@ -489,7 +573,7 @@ function toggleModal(id, show) {
 }
 
 // Backdrop click
-['modal-edit-rak','modal-confirm-hapus-rak','modal-pindah-barang','modal-upload-foto'].forEach(function(id) {
+['modal-edit-rak','modal-confirm-hapus-rak','modal-pindah-barang','modal-upload-foto','modal-confirm-hapus-foto'].forEach(function(id) {
     document.getElementById(id)?.addEventListener('click', function(e) {
         if (e.target === this) toggleModal(id, false);
     });
@@ -533,12 +617,44 @@ function updateSisaKapasitas() {
 document.getElementById('input-foto')?.addEventListener('change', function() {
     var wrap    = document.getElementById('foto-preview-wrap');
     var preview = document.getElementById('foto-preview');
-    if (this.files && this.files[0]) {
-        var reader = new FileReader();
-        reader.onload = function(e) { preview.src = e.target.result; wrap.classList.remove('hidden'); };
-        reader.readAsDataURL(this.files[0]);
+    var errEl   = document.getElementById('err-input-foto');
+    var file    = this.files && this.files[0];
+
+    // Reset error
+    if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
+
+    if (!file) { wrap.classList.add('hidden'); return; }
+
+    // Validasi format
+    var allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+        if (errEl) {
+            errEl.innerHTML = '<i class="fa-solid fa-circle-exclamation text-[10px] mr-1"></i> Format tidak valid. Hanya JPG, PNG, atau WebP yang diperbolehkan.';
+            errEl.classList.remove('hidden'); errEl.classList.add('flex');
+        }
+        this.value = '';
+        wrap.classList.add('hidden');
+        return;
     }
+
+    // Validasi ukuran (maks 2 MB = 2 * 1024 * 1024 bytes)
+    if (file.size > 2 * 1024 * 1024) {
+        if (errEl) {
+            errEl.innerHTML = '<i class="fa-solid fa-circle-exclamation text-[10px] mr-1"></i> Ukuran foto terlalu besar. Maksimal 2 MB (foto kamu: ' + (file.size / 1024 / 1024).toFixed(1) + ' MB).';
+            errEl.classList.remove('hidden'); errEl.classList.add('flex');
+        }
+        this.value = '';
+        wrap.classList.add('hidden');
+        return;
+    }
+
+    // Tampilkan preview
+    var reader = new FileReader();
+    reader.onload = function(e) { preview.src = e.target.result; wrap.classList.remove('hidden'); };
+    reader.readAsDataURL(file);
 });
+
+@endif
 
 // ── Validasi form edit rak ─────────────────────────────────────────
 (function () {
@@ -573,23 +689,6 @@ document.getElementById('input-foto')?.addEventListener('change', function() {
         if (!valid) e.preventDefault();
     });
 })();
-
-// ── Validasi form upload foto ──────────────────────────────────────
-(function () {
-    var form = document.getElementById('form-upload-foto');
-    if (!form) return;
-    form.addEventListener('submit', function(e) {
-        var input  = document.getElementById('input-foto');
-        var errEl  = document.getElementById('err-input-foto');
-        if (!input || !input.files || !input.files[0]) {
-            e.preventDefault();
-            errEl.classList.remove('hidden'); errEl.classList.add('flex');
-        } else {
-            errEl.classList.add('hidden'); errEl.classList.remove('flex');
-        }
-    });
-})();
-@endif
 
 // ── Validasi form pindah barang ────────────────────────────────────
 (function () {
@@ -641,4 +740,14 @@ document.getElementById('input-foto')?.addEventListener('change', function() {
     });
 })();
 </script>
+
+@if(auth()->user()->isAdmin() && $errors->has('foto'))
+<script>
+    // Auto-buka modal upload foto jika ada error validasi dari server
+    document.addEventListener('DOMContentLoaded', function() {
+        openFotoModal();
+    });
+</script>
+@endif
+
 @endsection

@@ -11,7 +11,7 @@
             <h2 class="wms-card-title flex items-center gap-2">
                 <i class="fa-solid fa-rectangle-list text-[#0058be]"></i> Kartu Stok Seluruh Barang
             </h2>
-            <p class="page-subtitle">Pantau stok real-time. Klik "Detail" untuk melihat riwayat mutasi per barang.</p>
+            <p class="page-subtitle">Pantau stok fisik, reservasi picking, dan saldo tersedia. Klik "Timeline" untuk riwayat mutasi.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <form action="{{ route('inventory.kartu-stok.index') }}" method="GET" class="flex items-center gap-2">
@@ -37,14 +37,17 @@
             @if($items->count() > 0)
                 <table class="wms-table">
                     <thead><tr>
-                        <th>SKU</th><th>Nama Barang</th><th>Kategori</th>
-                        <th>Lokasi Rak</th><th class="text-right">Total Stok</th>
+                        <th>SKU</th><th>Nama Barang</th><th>Kategori</th><th>Satuan</th>
+                        <th>Lokasi Rak</th><th class="text-right">Fisik</th>
+                        <th class="text-right">Reservasi</th><th class="text-right">Tersedia</th>
                         <th>Status</th><th class="text-right">Aksi</th>
                     </tr></thead>
                     <tbody>
         @foreach($items as $item)
                             @php
                                 $stok = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+                                $fisik = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->completed_outbound_qty ?? 0));
+                                $reservasi = (int)($item->reserved_qty ?? 0);
                                 $aman = $stok > $item->Min_Stok;
                             @endphp
                             <tr class="stok-row"
@@ -52,10 +55,11 @@
                                 <td class="font-mono font-semibold text-[#0058be]">{{ $item->SKU }}</td>
                                 <td class="font-medium text-slate-900">{{ $item->Nama }}</td>
                                 <td><span class="badge badge-neutral">{{ $item->Kategori }}</span></td>
+                                <td class="font-mono text-slate-600">{{ $item->Satuan }}</td>
                                 <td class="font-mono text-slate-600">{{ $item->rackLocation->Kode_Rak ?? '-' }}</td>
-                                <td class="text-right font-mono font-bold {{ $aman ? 'text-slate-900' : 'text-[#93000a]' }}">
-                                    {{ number_format($stok) }}
-                                </td>
+                                <td class="text-right font-mono font-bold text-slate-900">{{ number_format($fisik) }}</td>
+                                <td class="text-right font-mono text-amber-700">{{ number_format($reservasi) }}</td>
+                                <td class="text-right font-mono font-bold {{ $aman ? 'text-slate-900' : 'text-[#93000a]' }}">{{ number_format($stok) }}</td>
                                 <td>
                                     @if($stok == 0)
                                         <span class="badge badge-danger">

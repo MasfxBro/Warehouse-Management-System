@@ -9,12 +9,6 @@
     <meta http-equiv="x-dns-prefetch-control" content="off">
     <meta name="referrer" content="no-referrer">
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- QRCode.js -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="h-full bg-surface text-on-surface antialiased flex flex-col font-sans">
@@ -131,6 +125,12 @@
             @if(auth()->check() && auth()->user()->isAdmin())
                 <p class="sidebar-section-label">Sistem</p>
 
+                @php $isPracticeSession = request()->routeIs('practice-sessions.*'); @endphp
+                <a href="{{ route('practice-sessions.index') }}" class="sidebar-link {{ $isPracticeSession ? 'active' : '' }}">
+                    <i class="fa-solid fa-chalkboard-user {{ $isPracticeSession ? 'text-secondary' : 'text-slate-400' }}"></i>
+                    <span>Sesi Praktikum</span>
+                </a>
+
                 @php $isLogs = request()->routeIs('logs.*'); @endphp
                 <a href="{{ route('logs.index') }}"
                    class="sidebar-link {{ $isLogs ? 'active' : '' }}">
@@ -187,6 +187,16 @@
             </div>
 
             <div class="flex items-center gap-2">
+                @php $activePracticeSession = \App\Models\PracticeSession::current(); @endphp
+                @if($activePracticeSession)
+                    <span class="hidden lg:inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-2.5 py-1 rounded-md" title="Sesi praktikum aktif">
+                        <i class="fa-solid fa-circle text-[7px]"></i>{{ $activePracticeSession->Nama }}
+                    </span>
+                @else
+                    <span class="hidden lg:inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 text-[11px] font-semibold px-2.5 py-1 rounded-md">
+                        <i class="fa-solid fa-lock text-[9px]"></i>Tidak ada sesi aktif
+                    </span>
+                @endif
 
                 <!-- Role Badge -->
                 @if(auth()->user()->isAdmin())
@@ -285,9 +295,6 @@
                     <p id="err-name-identity" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
                         <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama lengkap wajib diisi.
                     </p>
-                        <p id="err-name-identity" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
-                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama lengkap wajib diisi.
-                        </p>
                 </div>
 
                 <div>
@@ -303,9 +310,6 @@
                     <p id="err-class-identity" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
                         <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kelas wajib diisi.
                     </p>
-                        <p id="err-class-identity" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
-                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kelas wajib diisi.
-                        </p>
                 </div>
 
                 <div>

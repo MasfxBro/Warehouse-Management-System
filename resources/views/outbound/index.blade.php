@@ -98,7 +98,7 @@
     {{-- TABEL 2: RIWAYAT --}}
     <div>
         <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Riwayat Outbound (Selesai)
+            <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Riwayat Outbound
         </h3>
         <div class="wms-card overflow-hidden">
             <div class="overflow-x-auto">
@@ -115,7 +115,13 @@
                                     <td class="font-mono font-semibold text-[#0058be]">{{ $trx->No_Shipping }}</td>
                                     <td class="font-mono text-slate-600">{{ $trx->Tanggal->format('d/m/Y') }}</td>
                                     <td class="font-medium text-slate-900">{{ $trx->customer->Nama ?? '-' }}</td>
-                                    <td><span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Complete</span></td>
+                                    <td>
+                                        @if($trx->isCancelled())
+                                            <span class="badge badge-danger"><i class="fa-solid fa-ban"></i> Dibatalkan</span>
+                                        @else
+                                            <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Selesai</span>
+                                        @endif
+                                    </td>
                                     <td class="text-right">
                                         <a href="{{ route('outbound.show', $trx->Outbound_ID) }}"
                                            class="btn btn-outline btn-sm gap-1">

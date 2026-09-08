@@ -95,7 +95,7 @@
                                 </td>
                                 <td class="text-right">
                                     <span class="font-mono font-bold {{ $outbound->isComplete() ? 'text-[#10b981]' : 'text-amber-700' }}">
-                                        {{ number_format($detail->Qty) }} unit
+                                        {{ number_format($detail->Qty) }} {{ $detail->masterBarang->Satuan ?? 'PCS' }}
                                     </span>
                                 </td>
                                 @if(!$outbound->isComplete())
@@ -110,14 +110,10 @@
                     </tbody>
                     <tfoot class="bg-surface border-t border-[#e2e8f0]">
                         <tr>
-                            <td colspan="{{ $outbound->isComplete() ? 4 : 5 }}"
+                            <td colspan="{{ $outbound->isComplete() ? 5 : 6 }}"
                                 class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                Total Qty
+                                {{ $outbound->outboundDetails->count() }} baris lokasi pengambilan
                             </td>
-                            <td class="px-4 py-3 text-right font-mono font-black">
-                                {{ number_format($outbound->outboundDetails->sum('Qty')) }} unit
-                            </td>
-                            @if(!$outbound->isComplete())<td></td>@endif
                         </tr>
                     </tfoot>
                 </table>

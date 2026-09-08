@@ -3,11 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\BaseUnit;
 use App\Models\InboundDetail;
 use App\Models\InboundTransaction;
 use App\Models\MasterBarang;
+use App\Models\OutboundDetail;
+use App\Models\PracticeSession;
 use App\Models\RackLocation;
 use App\Models\Supplier;
+use App\Services\DocumentNumberService;
+use App\Services\SkuNumberService;
+use App\Support\UnitNormalizer;
+use App\Support\WarehouseCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +27,7 @@ class InboundController extends Controller
 
     public function index(Request $request)
     {
-        $query = InboundTransaction::with(['supplier', 'inboundDetails'])
+        $query = InboundTransaction::with(['supplier', 'user', 'inboundDetails', 'allInboundDetails'])
             ->orderBy('Tanggal', 'desc')
             ->orderBy('Inbound_ID', 'desc');
 
@@ -30,7 +37,7 @@ class InboundController extends Controller
         }
 
         $transactions = $query->paginate(15)->withQueryString();
-        $suppliers     = Supplier::orderBy('Nama')->get();
+        $suppliers = Supplier::orderBy('Nama')->get();
 
         return view('inbound.index', compact('transactions', 'suppliers'));
     }
@@ -41,54 +48,60 @@ class InboundController extends Controller
 
     public function create()
     {
-        $suppliers     = Supplier::orderBy('Nama')->get();
+        $suppliers = Supplier::orderBy('Nama')->get();
         $masterBarangs = MasterBarang::with('rackLocation')
             ->withSum('inboundDetails as inbound_qty', 'Qty')
             ->withSum('outboundDetails as outbound_qty', 'Qty')
             ->orderBy('Nama')
             ->get()
             ->map(function ($b) {
-                $b->computed_stok = max(0, (int)($b->inbound_qty ?? 0) - (int)($b->outbound_qty ?? 0));
+                $b->computed_stok = max(0, (int) ($b->inbound_qty ?? 0) - (int) ($b->outbound_qty ?? 0));
+
                 return $b;
             });
         $rackLocations = RackLocation::withSum('inboundDetails as inbound_qty', 'Qty')
-            ->withSum('outboundDetails as outbound_qty', 'Qty')
+            ->withSum('completedOutboundDetails as outbound_qty', 'Qty')
             ->orderBy('Kode_Rak')
             ->get()
             ->map(function ($r) {
-                $terpakai        = max(0, (int)($r->inbound_qty ?? 0) - (int)($r->outbound_qty ?? 0));
-                $r->sisa         = max(0, $r->Kapasitas - $terpakai);
-                $r->terpakai     = $terpakai;
+                $terpakai = max(0, (int) ($r->inbound_qty ?? 0) - (int) ($r->outbound_qty ?? 0));
+                $r->sisa = max(0, $r->Kapasitas - $terpakai);
+                $r->terpakai = $terpakai;
+
                 return $r;
             })
             ->filter(fn ($r) => $r->sisa > 0)  // hanya rak yang masih ada ruang
             ->values();
 
         // Kategori unik yang sudah ada (untuk SKU Prefix Engine JS)
-        $kategoriList  = MasterBarang::select('Kategori')
+        $kategoriList = MasterBarang::select('Kategori')
             ->distinct()
             ->orderBy('Kategori')
             ->pluck('Kategori')
             ->filter()
             ->values();
 
+        $satuanList = BaseUnit::orderBy('Nama')->pluck('Nama')->values();
+
         // Pre-mapped arrays untuk JS — disiapkan di controller supaya
         // @json() di Blade tidak perlu arrow function (hindari ParseError)
         $masterBarangsJs = $masterBarangs->map(function ($b) {
             return [
-                'sku'      => $b->SKU,
-                'nama'     => $b->Nama,
+                'sku' => $b->SKU,
+                'nama' => $b->Nama,
                 'kategori' => $b->Kategori,
-                'rack_id'  => $b->Rack_ID,
+                'satuan' => $b->Satuan,
+                'harga' => $b->Harga_Dasar,
+                'rack_id' => $b->Rack_ID,
                 'min_stok' => $b->Min_Stok,
             ];
         })->values()->all();
 
         $rackLocationsJs = $rackLocations->map(function ($r) {
             return [
-                'id'    => $r->Rack_ID,
-                'label' => $r->Kode_Rak . ' (Aisle ' . $r->Aisle . ', Lvl ' . $r->Level . ') — Sisa: ' . $r->sisa . ' unit',
-                'sisa'  => $r->sisa,
+                'id' => $r->Rack_ID,
+                'label' => $r->Kode_Rak.' (Aisle '.$r->Aisle.', Lvl '.$r->Level.') — Sisa: '.$r->sisa.' unit',
+                'sisa' => $r->sisa,
             ];
         })->values()->all();
 
@@ -97,6 +110,7 @@ class InboundController extends Controller
             'masterBarangs',
             'rackLocations',
             'kategoriList',
+            'satuanList',
             'masterBarangsJs',
             'rackLocationsJs'
         ));
@@ -106,75 +120,70 @@ class InboundController extends Controller
     // STORE — Simpan Transaksi Inbound
     // =========================================================
 
-    public function store(Request $request)
+    public function store(Request $request, DocumentNumberService $documentNumbers, SkuNumberService $skuNumbers)
     {
         $request->validate([
-            'Tanggal'                    => ['required', 'date'],
-            'Supplier_ID'                => ['required', 'exists:suppliers,Supplier_ID'],
-            'items'                      => ['required', 'array', 'min:1'],
-            'items.*.jenis'              => ['required', 'in:lama,baru'],
-            'items.*.Qty'                => ['required', 'integer', 'min:1'],
+            'Tanggal' => ['required', 'date', 'before_or_equal:today'],
+            'Supplier_ID' => ['required', 'exists:suppliers,Supplier_ID'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.jenis' => ['required', 'in:lama,baru'],
+            'items.*.Qty' => ['required', 'integer', 'min:1'],
+            'items.*.Harga_Satuan' => ['exclude_unless:items.*.jenis,baru', 'required', 'integer', 'min:0', 'max:999999999999'],
             // Barang lama
-            'items.*.SKU_lama'           => ['nullable', 'string'],
+            'items.*.SKU_lama' => ['exclude_unless:items.*.jenis,lama', 'required', 'exists:master_barang,SKU'],
+            'items.*.Rack_ID_lama' => ['exclude_unless:items.*.jenis,lama', 'required', 'exists:rack_locations,Rack_ID'],
             // Barang baru
-            'items.*.Nama_baru'          => ['nullable', 'string', 'max:255'],
-            'items.*.Kategori_baru'      => ['nullable', 'string', 'max:100'],
-            'items.*.Rack_ID_baru'       => ['nullable', 'exists:rack_locations,Rack_ID'],
-            'items.*.Min_Stok_baru'      => ['nullable', 'integer', 'min:0'],
+            'items.*.Nama_baru' => ['exclude_unless:items.*.jenis,baru', 'required', 'string', 'max:255'],
+            'items.*.Kategori_baru' => ['exclude_unless:items.*.jenis,baru', 'required', 'string', 'max:100'],
+            'items.*.Satuan_baru' => ['exclude_unless:items.*.jenis,baru', 'required', 'string', 'max:50'],
+            'items.*.Rack_ID_baru' => ['exclude_unless:items.*.jenis,baru', 'required', 'exists:rack_locations,Rack_ID'],
+            'items.*.Min_Stok_baru' => ['exclude_unless:items.*.jenis,baru', 'required', 'integer', 'min:0'],
             // Resi
-            'items.*.No_Resi_Supplier'   => ['nullable', 'string', 'max:100'],
-            'items.*.tanpa_resi'         => ['nullable'],
+            'items.*.No_Resi_Supplier' => ['nullable', 'string', 'max:100'],
+            'items.*.tanpa_resi' => ['nullable'],
         ], [
             'Supplier_ID.required' => 'Supplier wajib dipilih.',
-            'items.required'       => 'Minimal harus ada satu baris barang.',
-            'items.*.Qty.min'      => 'Qty minimal 1.',
+            'items.required' => 'Minimal harus ada satu baris barang.',
+            'items.*.Qty.min' => 'Qty minimal 1.',
+            'items.*.Harga_Satuan.required' => 'Harga per satuan wajib diisi.',
+            'items.*.Harga_Satuan.integer' => 'Harga per satuan harus berupa angka rupiah tanpa desimal.',
         ]);
 
-        DB::beginTransaction();
-
         try {
-            $noReceiving = $this->generateNoReceiving();
+            $practiceSession = PracticeSession::current();
+            if (! $practiceSession) {
+                return back()->withInput()->with('error', 'Belum ada sesi praktikum aktif. Minta Guru/Admin membuka sesi terlebih dahulu.');
+            }
 
-            // Validasi kapasitas rak per item sebelum mulai transaksi
-            foreach ($request->items as $i => $item) {
-                $rackId = null;
-                if (($item['jenis'] ?? '') === 'lama' && !empty($item['SKU_lama'])) {
-                    $barang = MasterBarang::find($item['SKU_lama']);
-                    // Barang lama: cek kapasitas rak yang dipilih di form
-                    $rackId = $item['Rack_ID_lama'] ?? null;
-                } elseif (($item['jenis'] ?? '') === 'baru' && !empty($item['Rack_ID_baru'])) {
-                    $rackId = $item['Rack_ID_baru'];
-                }
+            // Validasi total Qty per rak, bukan per baris. Dua item yang masing-masing
+            // lolos tidak boleh bersama-sama melampaui sisa kapasitas rak yang sama.
+            $requestedByRack = collect($request->items)
+                ->groupBy(fn ($item) => $item['jenis'] === 'lama' ? $item['Rack_ID_lama'] : $item['Rack_ID_baru'])
+                ->map(fn ($items) => (int) $items->sum('Qty'));
 
-                if ($rackId) {
-                    $rak = RackLocation::withSum('inboundDetails as in_qty', 'Qty')
-                        ->withSum('outboundDetails as out_qty', 'Qty')
-                        ->find($rackId);
-                    if ($rak) {
-                        $terpakai  = max(0, (int)($rak->in_qty ?? 0) - (int)($rak->out_qty ?? 0));
-                        $sisa      = max(0, $rak->Kapasitas - $terpakai);
-                        $qty       = (int)($item['Qty'] ?? 0);
-                        if ($qty > $sisa) {
-                            $label = ($item['jenis'] === 'lama')
-                                ? ($item['SKU_lama'] ?? "Item #" . ($i + 1))
-                                : ($item['Nama_baru'] ?? "Item #" . ($i + 1));
-                            return back()->withInput()->with('error',
-                                "Qty barang \"{$label}\" ({$qty} unit) melebihi sisa kapasitas rak {$rak->Kode_Rak} ({$sisa} unit tersisa)."
-                            );
-                        }
-                    }
+            foreach ($requestedByRack as $rackId => $requestedQty) {
+                $rak = RackLocation::withSum('inboundDetails as in_qty', 'Qty')
+                    ->withSum('completedOutboundDetails as out_qty', 'Qty')
+                    ->findOrFail($rackId);
+                $terpakai = max(0, (int) ($rak->in_qty ?? 0) - (int) ($rak->out_qty ?? 0));
+                $sisa = max(0, $rak->Kapasitas - $terpakai);
+
+                if ($requestedQty > $sisa) {
+                    return back()->withInput()->with('error',
+                        "Total Qty ke rak {$rak->Kode_Rak} ({$requestedQty} unit) melebihi sisa kapasitasnya ({$sisa} unit)."
+                    );
                 }
             }
 
             // Cek duplikat nama barang baru dalam satu transaksi
             $namaBaruList = [];
             foreach ($request->items as $i => $item) {
-                if (($item['jenis'] ?? '') === 'baru' && !empty($item['Nama_baru'])) {
+                if (($item['jenis'] ?? '') === 'baru' && ! empty($item['Nama_baru'])) {
                     $namaLower = strtolower(trim($item['Nama_baru']));
                     if (in_array($namaLower, $namaBaruList)) {
                         return back()->withInput()->with('error',
-                            "Terdapat dua baris barang baru dengan nama yang sama: \"{$item['Nama_baru']}\". " .
-                            "Jika ingin memasukkan barang yang sama ke rak berbeda, gunakan jenis Barang Lama setelah baris pertama disimpan."
+                            "Terdapat dua baris barang baru dengan nama yang sama: \"{$item['Nama_baru']}\". ".
+                            'Jika ingin memasukkan barang yang sama ke rak berbeda, gunakan jenis Barang Lama setelah baris pertama disimpan.'
                         );
                     }
                     $namaBaruList[] = $namaLower;
@@ -189,41 +198,57 @@ class InboundController extends Controller
                 }
             }
 
+            // Semua validasi bisnis sudah lolos. Transaksi database baru dibuka
+            // di sini agar return dari validasi tidak meninggalkan transaksi aktif.
+            DB::beginTransaction();
+            $noReceiving = $documentNumbers->next('RSI', $request->Tanggal);
+            $requestedRackIds = collect($request->items)
+                ->map(fn ($item) => $item['jenis'] === 'lama' ? $item['Rack_ID_lama'] : $item['Rack_ID_baru'])
+                ->unique()
+                ->sort()
+                ->values();
+            RackLocation::whereIn('Rack_ID', $requestedRackIds)->orderBy('Rack_ID')->lockForUpdate()->get();
+
             // Buat header transaksi
             $inbound = InboundTransaction::create([
                 'No_Receiving' => $noReceiving,
-                'Tanggal'      => $request->Tanggal,
-                'Supplier_ID'  => $request->Supplier_ID,
-                'User_ID'      => Auth::id(),
-                'Catatan'      => $request->filled('Catatan') ? trim($request->Catatan) : null,
+                'Tanggal' => $request->Tanggal,
+                'Supplier_ID' => $request->Supplier_ID,
+                'User_ID' => Auth::id(),
+                'Catatan' => $request->filled('Catatan') ? trim($request->Catatan) : null,
+                'Practice_Session_ID' => $practiceSession->Practice_Session_ID,
             ]);
 
             foreach ($request->items as $item) {
-                $sku    = null;
+                $sku = null;
                 $rackId = null;
+                $unitPrice = null;
 
                 if ($item['jenis'] === 'lama') {
                     // ---- Barang Lama ----
-                    $sku    = $item['SKU_lama'] ?? null;
-                    $barang = MasterBarang::find($sku);
+                    $sku = $item['SKU_lama'] ?? null;
+                    $barang = MasterBarang::query()->lockForUpdate()->find($sku);
+                    $unitPrice = $barang->Harga_Dasar;
                     // Selalu pakai Rack_ID_lama dari form (user bebas pilih rak tujuan)
                     $rackId = $item['Rack_ID_lama'] ?? null;
 
-                    if (!$rackId) {
+                    if (! $rackId) {
                         DB::rollBack();
+
                         return back()->withInput()->with('error', "Barang \"{$barang?->Nama}\" belum dipilih rak tujuannya. Pilih rak terlebih dahulu.");
                     }
 
                     // Validasi kapasitas rak tujuan
                     $rakTujuan = RackLocation::withSum('inboundDetails as in_qty', 'Qty')
-                        ->withSum('outboundDetails as out_qty', 'Qty')
+                        ->withSum('completedOutboundDetails as out_qty', 'Qty')
                         ->find($rackId);
                     if ($rakTujuan) {
-                        $terpakai = max(0, (int)($rakTujuan->in_qty ?? 0) - (int)($rakTujuan->out_qty ?? 0));
-                        $sisa     = max(0, $rakTujuan->Kapasitas - $terpakai);
-                        $qty      = (int)($item['Qty'] ?? 0);
+                        $terpakai = max(0, (int) ($rakTujuan->in_qty ?? 0) - (int) ($rakTujuan->out_qty ?? 0));
+                        $sisa = max(0, $rakTujuan->Kapasitas - $terpakai);
+                        $qty = (int) ($item['Qty'] ?? 0);
                         if ($qty > $sisa) {
                             DB::rollBack();
+
                             return back()->withInput()->with('error',
                                 "Qty barang \"{$barang?->Nama}\" ({$qty} unit) melebihi sisa kapasitas rak {$rakTujuan->Kode_Rak} ({$sisa} unit tersisa)."
                             );
@@ -232,14 +257,20 @@ class InboundController extends Controller
                 } else {
                     // ---- Barang Baru ----
                     $prefix = $this->generateSkuPrefix($item['Kategori_baru'] ?? 'XXX');
-                    $sku    = $this->generateSku($prefix);
+                    $sku = $skuNumbers->next($prefix);
                     $rackId = $item['Rack_ID_baru'] ?? null;
+                    $unit = UnitNormalizer::normalize($item['Satuan_baru'] ?? null);
+                    $unitPrice = (int) $item['Harga_Satuan'];
+
+                    BaseUnit::firstOrCreate(['Nama' => $unit]);
 
                     MasterBarang::create([
-                        'SKU'      => $sku,
-                        'Nama'     => trim($item['Nama_baru']),
+                        'SKU' => $sku,
+                        'Nama' => trim($item['Nama_baru']),
                         'Kategori' => trim($item['Kategori_baru'] ?? ''),
-                        'Rack_ID'  => $rackId,
+                        'Satuan' => $unit,
+                        'Harga_Dasar' => $unitPrice,
+                        'Rack_ID' => $rackId,
                         'Min_Stok' => (int) ($item['Min_Stok_baru'] ?? 0),
                     ]);
                 }
@@ -252,17 +283,21 @@ class InboundController extends Controller
                 }
 
                 InboundDetail::create([
-                    'Inbound_ID'       => $inbound->Inbound_ID,
-                    'SKU'              => $sku,
-                    'Rack_ID'          => $rackId,
-                    'Qty'              => (int) $item['Qty'],
+                    'Inbound_ID' => $inbound->Inbound_ID,
+                    'SKU' => $sku,
+                    'Rack_ID' => $rackId,
+                    'Qty' => (int) $item['Qty'],
+                    'Harga_Satuan' => $unitPrice,
                     'No_Resi_Supplier' => $noResi,
                 ]);
             }
 
             DB::commit();
 
-            ActivityLog::record("Transaksi Inbound baru dibuat dengan No. Resi [{$noReceiving}] oleh [{$this->operatorLabel()}].");
+            WarehouseCache::clearDashboard();
+            ActivityLog::record(
+                "Transaksi Inbound [{$noReceiving}] dibuat dengan total nilai Rp ".number_format($inbound->fresh('inboundDetails')->total_nilai, 0, ',', '.').'.'
+            );
 
             session()->save(); // Paksa tulis session sebelum redirect
 
@@ -271,7 +306,9 @@ class InboundController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->withInput()->with('error', 'Gagal menyimpan transaksi: ' . $e->getMessage());
+            report($e);
+
+            return back()->withInput()->with('error', 'Transaksi inbound gagal disimpan. Silakan coba kembali atau hubungi administrator.');
         }
     }
 
@@ -286,9 +323,73 @@ class InboundController extends Controller
             'user',
             'inboundDetails.masterBarang',
             'inboundDetails.rackLocation',
+            'allInboundDetails.masterBarang',
+            'allInboundDetails.rackLocation',
+            'cancelledBy',
+            'practiceSession',
         ])->findOrFail($id);
 
         return view('inbound.show', compact('inbound'));
+    }
+
+    public function cancel(Request $request, string $id)
+    {
+        $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:500'],
+        ], [
+            'reason.required' => 'Alasan pembatalan wajib diisi.',
+            'reason.min' => 'Alasan pembatalan minimal 10 karakter.',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $inbound = InboundTransaction::with('inboundDetails')->lockForUpdate()->findOrFail($id);
+            if ($inbound->isCancelled()) {
+                DB::rollBack();
+
+                return back()->with('info', 'Transaksi inbound ini sudah dibatalkan sebelumnya.');
+            }
+
+            $requestedByRack = $inbound->inboundDetails
+                ->groupBy(fn (InboundDetail $detail) => $detail->SKU.'|'.$detail->Rack_ID)
+                ->map(fn ($details) => (int) $details->sum('Qty'));
+
+            MasterBarang::whereIn('SKU', $inbound->inboundDetails->pluck('SKU')->unique())
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($requestedByRack as $key => $qtyToReverse) {
+                [$sku, $rackId] = explode('|', $key, 2);
+                $currentInbound = InboundDetail::where('SKU', $sku)->where('Rack_ID', $rackId)->sum('Qty');
+                $currentOutbound = OutboundDetail::where('SKU', $sku)->where('Rack_ID', $rackId)->sum('Qty');
+
+                if (($currentInbound - $currentOutbound - $qtyToReverse) < 0) {
+                    DB::rollBack();
+
+                    return back()->with('error', "Inbound tidak dapat dibatalkan karena stok {$sku} sudah dipakai oleh transaksi outbound.");
+                }
+            }
+
+            $inbound->inboundDetails->each->delete();
+            $inbound->update([
+                'transaction_status' => 'cancelled',
+                'Cancelled_At' => now(),
+                'Cancelled_By' => Auth::id(),
+                'Cancellation_Reason' => trim($request->reason),
+            ]);
+            DB::commit();
+
+            WarehouseCache::clearDashboard();
+            ActivityLog::record("Transaksi Inbound [{$inbound->No_Receiving}] dibatalkan. Alasan: ".trim($request->reason));
+
+            return back()->with('success', "Inbound {$inbound->No_Receiving} berhasil dibatalkan dan stok dikembalikan.");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
+
+            return back()->with('error', 'Pembatalan inbound gagal diproses.');
+        }
     }
 
     // =========================================================
@@ -298,27 +399,53 @@ class InboundController extends Controller
     public function storeSupplierAjax(Request $request)
     {
         $request->validate([
-            'Nama'      => ['required', 'string', 'max:255'],
+            'Nama' => ['required', 'string', 'max:255'],
             'No_Kontak' => ['nullable', 'string', 'max:20'],
-            'Email'     => ['nullable', 'email', 'max:255'],
-            'Alamat'    => ['nullable', 'string', 'max:500'],
+            'Email' => ['nullable', 'email', 'max:255'],
+            'Alamat' => ['nullable', 'string', 'max:500'],
         ]);
 
         $supplier = Supplier::create([
-            'Nama'      => $request->Nama,
-            'Kontak'    => $request->No_Kontak,
+            'Nama' => $request->Nama,
+            'Kontak' => $request->No_Kontak,
             'No_Kontak' => $request->No_Kontak,
-            'Email'     => $request->Email,
-            'Alamat'    => $request->Alamat,
+            'Email' => $request->Email,
+            'Alamat' => $request->Alamat,
         ]);
 
-        ActivityLog::record("Supplier baru [{$supplier->Nama}] ditambahkan via modal Inbound oleh [{$this->operatorLabel()}].");
+        ActivityLog::record("Supplier baru [{$supplier->Nama}] ditambahkan melalui transaksi Inbound.");
 
         return response()->json([
-            'success'  => true,
+            'success' => true,
             'supplier' => [
-                'id'   => $supplier->Supplier_ID,
+                'id' => $supplier->Supplier_ID,
                 'nama' => $supplier->Nama,
+            ],
+        ]);
+    }
+
+    public function storeUnitAjax(Request $request)
+    {
+        $request->validate([
+            'Nama' => ['required', 'string', 'max:50'],
+        ], [
+            'Nama.required' => 'Nama satuan wajib diisi.',
+        ]);
+
+        $unit = BaseUnit::firstOrCreate([
+            'Nama' => UnitNormalizer::normalize($request->Nama),
+        ]);
+
+        if ($unit->wasRecentlyCreated) {
+            ActivityLog::record("Satuan dasar baru [{$unit->Nama}] ditambahkan melalui transaksi Inbound.");
+        }
+
+        return response()->json([
+            'success' => true,
+            'created' => $unit->wasRecentlyCreated,
+            'unit' => [
+                'id' => $unit->Unit_ID,
+                'nama' => $unit->Nama,
             ],
         ]);
     }
@@ -328,47 +455,13 @@ class InboundController extends Controller
     // =========================================================
 
     /**
-     * Generate No. Receiving format: RSI-YYYYMMDD-XXXX
-     */
-    private function generateNoReceiving(): string
-    {
-        $today = now()->format('Ymd');
-        $count = InboundTransaction::whereDate('Tanggal', today())->count();
-        return 'RSI-' . $today . '-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
-    }
-
-    /**
      * Ambil 3 konsonan pertama dari nama kategori.
      */
     private function generateSkuPrefix(string $kategori): string
     {
         $konsonan = preg_replace('/[aeiou\s]/i', '', $kategori);
-        $prefix   = strtoupper(substr($konsonan, 0, 3));
+        $prefix = strtoupper(substr($konsonan, 0, 3));
+
         return str_pad($prefix, 3, 'X');
-    }
-
-    /**
-     * Generate SKU unik: PREFIX-00001
-     */
-    private function generateSku(string $prefix): string
-    {
-        $count = MasterBarang::where('SKU', 'LIKE', $prefix . '-%')->count();
-        return $prefix . '-' . str_pad($count + 1, 5, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Label operator untuk Activity Log.
-     */
-    private function operatorLabel(): string
-    {
-        $user = Auth::user();
-        if (!$user) return 'Sistem';
-        if ($user->isAdmin()) return 'Guru: ' . $user->name;
-
-        $identity = session('student_identity');
-        if ($identity && !empty($identity['name'])) {
-            return "Operator: {$identity['name']} | {$identity['class']}";
-        }
-        return 'Siswa: ' . $user->name;
     }
 }
