@@ -68,6 +68,8 @@ class StockOpnameController extends Controller
         $barang = MasterBarang::find($request->SKU);
         ActivityLog::record("Stock Opname baru dibuat untuk [{$barang->Nama}] ({$request->SKU}) pada [{$request->Tanggal}] oleh [{$this->operatorLabel()}].");
 
+        session()->save();
+
         return redirect()->route('inventory.stock-opname.index')
             ->with('success', "Catatan Stock Opname untuk {$barang->Nama} berhasil disimpan.");
     }
@@ -76,7 +78,7 @@ class StockOpnameController extends Controller
     // EDIT — Form Edit Opname
     // =========================================================
 
-    public function edit(int $id)
+    public function edit(string $id)
     {
         $opname  = StockOpname::findOrFail($id);
         $barangs = MasterBarang::orderBy('Nama')->get();
@@ -87,7 +89,7 @@ class StockOpnameController extends Controller
     // UPDATE — Simpan Perubahan Opname
     // =========================================================
 
-    public function update(Request $request, int $id)
+    public function update(Request $request, string $id)
     {
         $opname = StockOpname::findOrFail($id);
 
@@ -114,7 +116,7 @@ class StockOpnameController extends Controller
     // DESTROY — Hapus Catatan Opname
     // =========================================================
 
-    public function destroy(int $id)
+    public function destroy(string $id)
     {
         $opname = StockOpname::findOrFail($id);
         $sku    = $opname->SKU;

@@ -58,9 +58,7 @@
                             <th>Kapasitas Maksimal</th>
                             <th>Kapasitas Terpakai</th>
                             <th>Status Kapasitas</th>
-                            @if(auth()->user()->isAdmin())
-                                <th class="text-right">Aksi</th>
-                            @endif
+                            <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -72,9 +70,13 @@
                                     Lorong {{ $rack->Aisle }} (Level {{ $rack->Level }})
                                 </td>
                                 <td class="font-mono text-slate-700">{{ number_format($rack->Kapasitas) }} unit</td>
-                                <td class="font-mono font-bold text-slate-900">{{ number_format($rack->kapasitas_terpakai) }} unit</td>
+                                <td class="font-mono font-bold text-slate-900">{{ number_format(max(0, (int)($rack->inbound_qty ?? 0) - (int)($rack->outbound_qty ?? 0))) }} unit</td>
                                 <td>
-                                    @php $status = $rack->status_kapasitas; @endphp
+                                    @php
+                                        $terpakai = max(0, (int)($rack->inbound_qty ?? 0) - (int)($rack->outbound_qty ?? 0));
+                                        $ratio    = $rack->Kapasitas > 0 ? $terpakai / $rack->Kapasitas : 0;
+                                        $status   = $ratio >= 1.0 ? 'Penuh' : ($ratio >= 0.8 ? 'Hampir Penuh' : 'Tersedia');
+                                    @endphp
                                     @if($status === 'Penuh')
                                         <span class="badge badge-danger">
                                             <i class="fa-solid fa-circle-xmark"></i> Penuh
@@ -89,23 +91,13 @@
                                         </span>
                                     @endif
                                 </td>
-                                @if(auth()->user()->isAdmin())
-                                    <td class="text-right space-x-1">
-                                        <button type="button"
-                                                onclick="openEditModal({{ json_encode($rack) }})"
-                                                class="btn btn-outline btn-sm gap-1.5">
-                                            <i class="fa-solid fa-pen-to-square"></i> Edit
-                                        </button>
-                                        <form action="{{ route('master.rak.destroy', $rack->Rack_ID) }}" method="POST" class="inline"
-                                              onsubmit="return confirm('Apakah Anda yakin ingin menghapus rak {{ $rack->Kode_Rak }}?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-danger btn-sm gap-1.5">
-                                                <i class="fa-solid fa-trash"></i> Hapus
-                                            </button>
-                                        </form>
-                                    </td>
-                                @endif
+                                {{-- Tombol Detail untuk semua role, admin dapat aksi tambahan --}}
+                                <td class="text-right space-x-1">
+                                    <a href="{{ route('master.rak.show', $rack->Rack_ID) }}"
+                                       class="btn btn-outline btn-sm gap-1.5">
+                                        <i class="fa-solid fa-eye"></i> Detail
+                                    </a>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -127,22 +119,56 @@
 
 </div>
 
+{{-- Custom Confirm Modal Hapus Rak --}}
+@if(auth()->user()->isAdmin())
+<div id="modal-confirm-delete-rak"
+     class="fixed inset-0 bg-black/50 backdrop-blur-sm items-center justify-center z-[60] hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full border border-[#e2e8f0] overflow-hidden">
+        <div class="bg-on-error-container px-6 py-5 text-white text-center">
+            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mx-auto mb-3">
+                <i class="fa-solid fa-trash text-2xl"></i>
+            </div>
+            <h3 class="text-base font-bold">Konfirmasi Hapus Rak</h3>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-slate-700 text-center">
+                Apakah Anda yakin ingin menghapus rak
+                <strong id="delete-rak-kode" class="font-mono text-on-error-container"></strong>?
+            </p>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-800 flex items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation shrink-0 mt-0.5"></i>
+                <span>Pastikan semua barang di rak ini sudah dipindahkan sebelum menghapus.</span>
+            </div>
+            <div class="flex gap-3 pt-1">
+                <button type="button" onclick="closeConfirmDeleteRak()"
+                        class="btn btn-outline flex-1">
+                    Batal
+                </button>
+                <button type="button" id="btn-confirm-delete-rak"
+                        class="btn btn-danger flex-1 gap-1.5">
+                    <i class="fa-solid fa-trash"></i> Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 {{-- ADMIN ADD / EDIT RACK MODAL --}}
 @if(auth()->user()->isAdmin())
-    <div id="rackModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
-        <div class="max-w-md w-full bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
-
-            <div class="bg-slate-900 p-5 text-white flex items-center justify-between">
-                <h3 id="modalTitle" class="text-base font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-map-pin"></i> Tambah Lokasi Rak
-                </h3>
+    <div id="rackModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h4 id="modalTitle" class="modal-title flex items-center gap-2">
+                    <i class="fa-solid fa-map-pin text-[#0058be]"></i> Tambah Lokasi Rak
+                </h4>
                 <button type="button" onclick="closeModal()"
-                        class="text-slate-400 hover:text-white transition-colors cursor-pointer">
+                        class="text-slate-400 hover:text-slate-600 cursor-pointer">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
-            <form id="rackForm" action="{{ route('master.rak.store') }}" method="POST" class="p-6 space-y-4">
+            <form id="rackForm" action="{{ route('master.rak.store') }}" method="POST" class="modal-body" novalidate>
                 @csrf
                 <input type="hidden" id="methodField" name="_method" value="POST">
 
@@ -150,75 +176,143 @@
                     <label for="Kode_Rak" class="wms-label">Kode Rak <span class="text-red-500">*</span></label>
                     <input type="text" id="Kode_Rak" name="Kode_Rak" required
                            placeholder="Contoh: R-A1-01"
-                           class="wms-input w-full font-mono">
+                           class="wms-input font-mono">
+                    <p id="err-Kode_Rak" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kode Rak wajib diisi.
+                    </p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label for="Aisle" class="wms-label">Lorong (Aisle) <span class="text-red-500">*</span></label>
-                        <input type="text" id="Aisle" name="Aisle" required
-                               placeholder="Contoh: A1"
-                               class="wms-input w-full">
+                        <label for="Aisle" class="wms-label">Lorong <span class="text-red-500">*</span></label>
+                        <input type="text" id="Aisle" name="Aisle" required placeholder="Contoh: A1" class="wms-input">
+                        <p id="err-Aisle" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Lorong wajib diisi.
+                        </p>
                     </div>
                     <div>
-                        <label for="Level" class="wms-label">Tingkat (Level) <span class="text-red-500">*</span></label>
-                        <input type="text" id="Level" name="Level" required
-                               placeholder="Contoh: 01"
-                               class="wms-input w-full">
+                        <label for="Level" class="wms-label">Tingkat Rak <span class="text-red-500">*</span></label>
+                        <input type="text" id="Level" name="Level" required placeholder="Contoh: 01" class="wms-input">
+                        <p id="err-Level" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Tingkat Rak wajib diisi.
+                        </p>
                     </div>
                 </div>
 
                 <div>
                     <label for="Kapasitas" class="wms-label">Kapasitas Maksimal (Unit) <span class="text-red-500">*</span></label>
                     <input type="number" id="Kapasitas" name="Kapasitas" required min="1"
-                           placeholder="Contoh: 500"
-                           class="wms-input w-full font-mono">
+                           placeholder="Contoh: 500" class="wms-input font-mono">
+                    <p id="err-Kapasitas" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kapasitas wajib diisi dan minimal 1.
+                    </p>
                 </div>
 
-                <div class="pt-3 flex items-center justify-end gap-2">
-                    <button type="button" onclick="closeModal()" class="btn-outline">
-                        Batal
-                    </button>
-                    <button type="submit" class="btn btn-primary gap-1.5">
+                <div class="modal-footer">
+                    <button type="button" onclick="closeModal()" class="btn btn-outline flex-1">Batal</button>
+                    <button type="submit" class="btn btn-primary flex-1 gap-1.5">
                         <i class="fa-solid fa-floppy-disk"></i> Simpan Data
                     </button>
                 </div>
             </form>
-
         </div>
     </div>
 
     <script>
+        let _deleteRakId = null;
+
+        function confirmDeleteRak(id, kode) {
+            _deleteRakId = id;
+            document.getElementById('delete-rak-kode').textContent = kode;
+            const m = document.getElementById('modal-confirm-delete-rak');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+        function closeConfirmDeleteRak() {
+            const m = document.getElementById('modal-confirm-delete-rak');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+            _deleteRakId = null;
+        }
+        document.getElementById('btn-confirm-delete-rak')?.addEventListener('click', function () {
+            if (_deleteRakId) {
+                document.getElementById('del-rack-' + _deleteRakId)?.submit();
+            }
+        });
+        document.getElementById('modal-confirm-delete-rak')?.addEventListener('click', function (e) {
+            if (e.target === this) closeConfirmDeleteRak();
+        });
+
         function openAddModal() {
-            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-plus mr-1.5"></i> Tambah Lokasi Rak';
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-plus mr-1.5 text-[#0058be]"></i> Tambah Lokasi Rak';
             document.getElementById('rackForm').action = "{{ route('master.rak.store') }}";
             document.getElementById('methodField').value = 'POST';
             document.getElementById('Kode_Rak').value = '';
             document.getElementById('Aisle').value = '';
             document.getElementById('Level').value = '';
             document.getElementById('Kapasitas').value = '';
-
             document.getElementById('rackModal').classList.remove('hidden');
-            document.getElementById('rackModal').classList.add('flex');
         }
 
         function openEditModal(rack) {
-            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1.5"></i> Edit Rak: ' + rack.Kode_Rak;
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1.5 text-[#0058be]"></i> Edit Rak: ' + rack.Kode_Rak;
             document.getElementById('rackForm').action = "/master-data/rak/" + rack.Rack_ID;
             document.getElementById('methodField').value = 'PUT';
             document.getElementById('Kode_Rak').value = rack.Kode_Rak;
             document.getElementById('Aisle').value = rack.Aisle;
             document.getElementById('Level').value = rack.Level;
             document.getElementById('Kapasitas').value = rack.Kapasitas;
-
             document.getElementById('rackModal').classList.remove('hidden');
-            document.getElementById('rackModal').classList.add('flex');
         }
 
         function closeModal() {
-            document.getElementById('rackModal').classList.remove('flex');
             document.getElementById('rackModal').classList.add('hidden');
         }
+
+        // Custom validation — ganti browser native popup
+        (function () {
+            var form = document.getElementById('rackForm');
+            if (!form) return;
+            function showErr(id, msg) {
+                var p = document.getElementById('err-' + id);
+                var inp = document.getElementById(id);
+                if (p) { p.innerHTML = '<i class="fa-solid fa-circle-exclamation text-[10px] mr-1"></i>' + msg; p.classList.remove('hidden'); p.classList.add('flex'); }
+                if (inp) inp.classList.add('border-red-400');
+            }
+            function clearErr(id) {
+                var p = document.getElementById('err-' + id);
+                var inp = document.getElementById(id);
+                if (p) { p.classList.add('hidden'); p.classList.remove('flex'); }
+                if (inp) inp.classList.remove('border-red-400');
+            }
+            function clearAllErrors() {
+                ['Kode_Rak','Aisle','Level','Kapasitas'].forEach(clearErr);
+            }
+            // Clear errors saat modal dibuka (add/edit)
+            document.getElementById('rackModal')?.addEventListener('click', function(){});
+            // Patch openAddModal dan openEditModal supaya clear error saat dibuka
+            var _origOpenAdd  = window.openAddModal;
+            var _origOpenEdit = window.openEditModal;
+            window.openAddModal = function() { clearAllErrors(); if(_origOpenAdd) _origOpenAdd.apply(this, arguments); };
+            window.openEditModal = function(rack) { clearAllErrors(); if(_origOpenEdit) _origOpenEdit.apply(this, [rack]); };
+
+            ['Kode_Rak','Aisle','Level','Kapasitas'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.addEventListener('input', function () { clearErr(id); });
+            });
+            form.addEventListener('submit', function (e) {
+                var valid = true;
+                var kode = document.getElementById('Kode_Rak');
+                var aisle = document.getElementById('Aisle');
+                var level = document.getElementById('Level');
+                var kap   = document.getElementById('Kapasitas');
+                if (!kode  || !kode.value.trim())  { showErr('Kode_Rak', 'Kode Rak wajib diisi.'); valid = false; }
+                if (!aisle || !aisle.value.trim()) { showErr('Aisle', 'Lorong wajib diisi.'); valid = false; }
+                if (!level || !level.value.trim()) { showErr('Level', 'Tingkat Rak wajib diisi.'); valid = false; }
+                if (!kap   || !kap.value || parseInt(kap.value) < 1) { showErr('Kapasitas', 'Kapasitas wajib diisi dan minimal 1.'); valid = false; }
+                if (!valid) e.preventDefault();
+            });
+        })();
     </script>
 @endif
 @endsection

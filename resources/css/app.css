@@ -149,6 +149,7 @@ body {
     transition: box-shadow 0.2s;
 }
 .stat-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.stat-card.flex-col { flex-direction: column; align-items: stretch; justify-content: flex-start; }
 .stat-card-icon {
     width: 2.5rem;
     height: 2.5rem;

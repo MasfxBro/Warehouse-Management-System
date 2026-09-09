@@ -28,7 +28,7 @@
             <p class="text-xs text-slate-400 mt-1">Gunakan kredensial yang diberikan oleh instruktur.</p>
         </div>
 
-        <form action="{{ route('login.store') }}" method="POST" class="px-6 pb-6 pt-4 space-y-4">
+        <form action="{{ route('login.store') }}" method="POST" class="px-6 pb-6 pt-4 space-y-4" id="login-form" novalidate>
             @csrf
 
             @if(session('error'))
@@ -59,11 +59,15 @@
                         <i class="fa-solid fa-user text-xs"></i>
                     </span>
                     <input type="text" name="login"
+                           id="input-login"
                            value="{{ old('login') }}"
                            required autofocus
                            placeholder="admin / siswa"
                            class="wms-input" style="padding-left: 2.25rem;">
                 </div>
+                <p id="err-input-login" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Username atau email wajib diisi.
+                </p>
             </div>
 
             <div>
@@ -73,10 +77,14 @@
                         <i class="fa-solid fa-lock text-xs"></i>
                     </span>
                     <input type="password" name="password"
+                           id="input-password"
                            required
                            placeholder="••••••••"
                            class="wms-input" style="padding-left: 2.25rem;">
                 </div>
+                <p id="err-input-password" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Password wajib diisi.
+                </p>
             </div>
 
             <button type="submit"
@@ -110,5 +118,38 @@
     <p class="text-center text-[10px] text-slate-400 mt-5">WMS Prototipe 2 &copy; {{ date('Y') }} — SMK Logistik</p>
 </div>
 
+</body>
+</html>
+
+<script>
+(function () {
+    var form = document.getElementById('login-form');
+    if (!form) return;
+    function showErr(id, msg) {
+        var p = document.getElementById('err-' + id);
+        var inp = document.getElementById(id);
+        if (p) { p.textContent = ''; p.innerHTML = '<i class="fa-solid fa-circle-exclamation text-[10px] mr-1"></i>' + msg; p.classList.remove('hidden'); p.classList.add('flex'); }
+        if (inp) inp.classList.add('border-red-400');
+    }
+    function clearErr(id) {
+        var p = document.getElementById('err-' + id);
+        var inp = document.getElementById(id);
+        if (p) { p.classList.add('hidden'); p.classList.remove('flex'); }
+        if (inp) inp.classList.remove('border-red-400');
+    }
+    ['input-login', 'input-password'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', function () { clearErr(id); });
+    });
+    form.addEventListener('submit', function (e) {
+        var valid = true;
+        var login = document.getElementById('input-login');
+        var pass  = document.getElementById('input-password');
+        if (!login || !login.value.trim()) { showErr('input-login', 'Username atau email wajib diisi.'); valid = false; }
+        if (!pass  || !pass.value.trim())  { showErr('input-password', 'Password wajib diisi.'); valid = false; }
+        if (!valid) { e.preventDefault(); }
+    });
+})();
+</script>
 </body>
 </html>

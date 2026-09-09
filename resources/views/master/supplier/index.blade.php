@@ -60,6 +60,9 @@
                             <th>Email Perusahaan</th>
                             <th>Alamat Perusahaan</th>
                             <th>Total Inbound</th>
+                            @if(auth()->user()->isAdmin())
+                                <th class="text-right">Aksi</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -77,10 +80,25 @@
                                 <td class="text-slate-700 max-w-xs truncate">{{ $supplier->Alamat ?? '-' }}</td>
                                 <td>
                                     <span class="badge badge-info">
-                                        <i class="fa-solid fa-arrow-down-to-bracket"></i>
+                                        <i class="fa-solid fa-arrow-down"></i>
                                         {{ $supplier->inbound_transactions_count }} transaksi
                                     </span>
                                 </td>
+                                @if(auth()->user()->isAdmin())
+                                    <td class="text-right">
+                                        <button type="button"
+                                                onclick="openEditSupplier(
+                                                    '{{ $supplier->Supplier_ID }}',
+                                                    {{ json_encode($supplier->Nama) }},
+                                                    {{ json_encode($supplier->No_Kontak ?? $supplier->Kontak ?? '') }},
+                                                    {{ json_encode($supplier->Email ?? '') }},
+                                                    {{ json_encode($supplier->Alamat ?? '') }}
+                                                )"
+                                                class="btn btn-outline btn-sm gap-1">
+                                            <i class="fa-solid fa-pen-to-square"></i> Edit
+                                        </button>
+                                    </td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>
@@ -101,4 +119,108 @@
     </div>
 
 </div>
+
+{{-- Modal Edit Supplier (Admin Only) --}}
+@if(auth()->user()->isAdmin())
+<div id="modal-edit-supplier" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h4 class="modal-title flex items-center gap-2">
+                <i class="fa-solid fa-building text-[#0058be]"></i> Edit Data Supplier
+            </h4>
+            <button type="button" onclick="closeEditSupplier()"
+                    class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <form id="form-edit-supplier" method="POST" class="modal-body" novalidate>
+            @csrf @method('PUT')
+            <div>
+                <label class="wms-label">Nama Supplier / PT <span class="text-red-500">*</span></label>
+                <input type="text" name="Nama" id="edit-nama" required class="wms-input">
+                <p id="err-edit-nama" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama supplier wajib diisi.
+                </p>
+            </div>
+            <div>
+                <label class="wms-label">No. Kontak
+                    <span class="text-[10px] text-slate-400 font-normal">(hanya angka)</span>
+                </label>
+                <input type="text" name="No_Kontak" id="edit-kontak" inputmode="numeric"
+                       placeholder="08xx..." class="wms-input">
+            </div>
+            <div>
+                <label class="wms-label">Email
+                    <span class="text-[10px] text-slate-400 font-normal">(wajib ada @)</span>
+                </label>
+                <input type="text" name="Email" id="edit-email" placeholder="info@..." class="wms-input">
+            </div>
+            <div>
+                <label class="wms-label">Alamat</label>
+                <textarea name="Alamat" id="edit-alamat" rows="2" class="wms-textarea" placeholder="Jl. ..."></textarea>
+            </div>
+            <p id="edit-error" class="text-red-500 text-xs hidden"></p>
+            <div class="modal-footer">
+                <button type="button" onclick="closeEditSupplier()" class="btn btn-outline flex-1">Batal</button>
+                <button type="submit" class="btn btn-primary flex-1 gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i> Simpan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditSupplier(id, nama, kontak, email, alamat) {
+    document.getElementById('form-edit-supplier').action = `/master-data/supplier/${id}`;
+    document.getElementById('edit-nama').value   = nama;
+    document.getElementById('edit-kontak').value = kontak;
+    document.getElementById('edit-email').value  = email;
+    document.getElementById('edit-alamat').value = alamat;
+    document.getElementById('edit-error').classList.add('hidden');
+
+    const m = document.getElementById('modal-edit-supplier');
+    m.classList.remove('hidden');
+}
+function closeEditSupplier() {
+    document.getElementById('modal-edit-supplier').classList.add('hidden');
+}
+// Validasi sebelum submit
+document.getElementById('form-edit-supplier').addEventListener('submit', function(e) {
+    const nama   = document.getElementById('edit-nama').value.trim();
+    const kontak = document.getElementById('edit-kontak').value.trim();
+    const email  = document.getElementById('edit-email').value.trim();
+    const errEl  = document.getElementById('edit-error');
+    const namaEl = document.getElementById('edit-nama');
+    const errNama = document.getElementById('err-edit-nama');
+
+    // Reset
+    errEl.classList.add('hidden');
+    if (errNama) { errNama.classList.add('hidden'); errNama.classList.remove('flex'); }
+    if (namaEl)  namaEl.classList.remove('border-red-400');
+
+    if (!nama) {
+        e.preventDefault();
+        if (errNama) { errNama.classList.remove('hidden'); errNama.classList.add('flex'); }
+        if (namaEl)  namaEl.classList.add('border-red-400');
+        return;
+    }
+    if (kontak && !/^\d+$/.test(kontak)) {
+        e.preventDefault();
+        errEl.textContent = 'No. Kontak hanya boleh berisi angka.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    if (email && !email.includes('@')) {
+        e.preventDefault();
+        errEl.textContent = 'Email harus mengandung karakter @.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+});
+document.getElementById('modal-edit-supplier')?.addEventListener('click', function(e) {
+    if (e.target === this) closeEditSupplier();
+});
+</script>
+@endif
 @endsection

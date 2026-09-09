@@ -14,10 +14,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('inbound_transactions', function (Blueprint $table) {
-            $table->id('Inbound_ID');
+            $table->uuid('Inbound_ID')->primary()->comment('UUID primary key');
             $table->string('No_Receiving', 100)->unique()->comment('Nomor Resi Sistem Inbound (RSI-YYYYMMDD-XXXX)');
             $table->date('Tanggal')->comment('Tanggal penerimaan barang');
-            $table->unsignedBigInteger('Supplier_ID')->comment('Supplier penyuplai');
+            $table->uuid('Supplier_ID')->comment('Supplier penyuplai');
             $table->foreign('Supplier_ID')
                   ->references('Supplier_ID')
                   ->on('suppliers')

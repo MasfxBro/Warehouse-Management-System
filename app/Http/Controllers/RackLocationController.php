@@ -2,37 +2,206 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InboundDetail;
+use App\Models\MasterBarang;
+use App\Models\OutboundDetail;
 use App\Models\RackLocation;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class RackLocationController extends Controller
 {
     /**
-     * Tampilkan daftar lokasi rak (Akses: Admin & Siswa).
+     * Tampilkan daftar lokasi rak.
      */
     public function index(Request $request)
     {
         $search = $request->query('search');
-
-        $query = RackLocation::with(['inboundDetails', 'outboundDetails']);
+        $query  = RackLocation::withSum('inboundDetails as inbound_qty', 'Qty')
+                               ->withSum('outboundDetails as outbound_qty', 'Qty');
 
         if ($search) {
-            $searchLower = strtolower($search);
-            $query->where(function ($q) use ($searchLower) {
-                $q->whereRaw("LOWER(\"Kode_Rak\") LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(\"Aisle\") LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(\"Level\") LIKE ?", ['%' . $searchLower . '%']);
+            $s = strtolower($search);
+            $query->where(function ($q) use ($s) {
+                $q->whereRaw('LOWER("Kode_Rak") LIKE ?', ["%{$s}%"])
+                  ->orWhereRaw('LOWER("Aisle") LIKE ?', ["%{$s}%"])
+                  ->orWhereRaw('LOWER("Level") LIKE ?', ["%{$s}%"]);
             });
         }
 
         $racks = $query->paginate(15)->withQueryString();
-
         return view('master.rak.index', compact('racks', 'search'));
     }
 
     /**
-     * Simpan lokasi rak baru (Akses: HANYA Admin).
+     * Tampilkan halaman detail rak + daftar barang di rak tersebut.
+     * Accessible: Admin & Siswa.
+     */
+    public function show(string $id)
+    {
+        $rack = RackLocation::findOrFail($id);
+
+        // Tampilkan barang yang BENAR-BENAR ada stok di rak ini
+        // berdasarkan InboundDetail.Rack_ID bukan MasterBarang.Rack_ID
+        $barangDiRak = InboundDetail::where('Rack_ID', $rack->Rack_ID)
+            ->selectRaw('"SKU", SUM("Qty") as inbound_qty')
+            ->groupBy('SKU')
+            ->pluck('inbound_qty', 'SKU');
+
+        $outboundDiRak = OutboundDetail::where('Rack_ID', $rack->Rack_ID)
+            ->selectRaw('"SKU", SUM("Qty") as outbound_qty')
+            ->groupBy('SKU')
+            ->pluck('outbound_qty', 'SKU');
+
+        // Hanya barang yang net stok > 0 di rak ini
+        $skuDiRak = $barangDiRak->filter(function($inQty, $sku) use ($outboundDiRak) {
+            $outQty = $outboundDiRak->get($sku, 0);
+            return ($inQty - $outQty) > 0;
+        })->keys();
+
+        $barangs = MasterBarang::with('rackLocation')
+            ->whereIn('SKU', $skuDiRak)
+            ->orderBy('SKU')
+            ->paginate(15, ['*'], 'barang_page')
+            ->through(function($b) use ($barangDiRak, $outboundDiRak) {
+                $b->stok_di_rak = max(0,
+                    ($barangDiRak->get($b->SKU, 0)) - ($outboundDiRak->get($b->SKU, 0))
+                );
+                return $b;
+            });
+
+        $otherRacks = RackLocation::where('Rack_ID', '!=', $rack->Rack_ID)
+            ->withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty')
+            ->orderBy('Kode_Rak')
+            ->get()
+            ->map(function ($r) {
+                $terpakai          = max(0, (int)($r->inbound_qty ?? 0) - (int)($r->outbound_qty ?? 0));
+                $r->sisa_kapasitas = max(0, $r->Kapasitas - $terpakai);
+                $r->terpakai       = $terpakai;
+                return $r;
+            });
+
+        return view('master.rak.show', compact('rack', 'barangs', 'otherRacks'));
+    }
+
+    /**
+     * Pindahkan barang ke rak lain dengan qty tertentu.
+     * Accessible: Admin & Siswa.
+     *
+     * Logic kapasitas:
+     * - kapasitas_terpakai dihitung dari SUM(inbound_details.Qty) - SUM(outbound_details.Qty) WHERE Rack_ID = X
+     * - Memindah barang = update Rack_ID di inbound_details sebanyak qty yang dipindahkan
+     * - Ini otomatis mengurangi kapasitas rak asal dan menambah kapasitas rak tujuan
+     * - Jika qty = seluruh stok barang di rak asal → update juga MasterBarang.Rack_ID (default rak)
+     */
+    public function pindahBarang(Request $request, string $id)
+    {
+        $request->validate([
+            'sku'         => 'required|exists:master_barang,SKU',
+            'new_rack_id' => 'required|exists:rack_locations,Rack_ID',
+            'qty'         => 'required|integer|min:1',
+        ], [
+            'qty.min' => 'Jumlah barang yang dipindahkan minimal 1.',
+        ]);
+
+        if ($request->new_rack_id === $id) {
+            return back()->with('error', 'Rak tujuan tidak boleh sama dengan rak asal.');
+        }
+
+        $barang    = MasterBarang::findOrFail($request->sku);
+        $rakAsal   = RackLocation::findOrFail($id);
+        $rakTujuan = RackLocation::findOrFail($request->new_rack_id);
+
+        // Hitung stok barang di rak asal (inbound - outbound untuk SKU + Rack_ID ini)
+        $inboundQtyAsal  = InboundDetail::where('SKU', $barang->SKU)
+            ->where('Rack_ID', $rakAsal->Rack_ID)->sum('Qty');
+        $outboundQtyAsal = OutboundDetail::where('SKU', $barang->SKU)
+            ->where('Rack_ID', $rakAsal->Rack_ID)->sum('Qty');
+        $stokAsal = max(0, $inboundQtyAsal - $outboundQtyAsal);
+
+        if ($stokAsal <= 0) {
+            return back()->with('error', "Tidak ada stok barang {$barang->Nama} di rak {$rakAsal->Kode_Rak}.");
+        }
+
+        if ($request->qty > $stokAsal) {
+            return back()->with('error', "Jumlah yang dipindahkan ({$request->qty}) melebihi stok barang di rak ini ({$stokAsal} unit).");
+        }
+
+        // Hitung sisa kapasitas rak tujuan
+        $terpakaiTujuan = max(0,
+            InboundDetail::where('Rack_ID', $rakTujuan->Rack_ID)->sum('Qty')
+            - OutboundDetail::where('Rack_ID', $rakTujuan->Rack_ID)->sum('Qty')
+        );
+        $sisaTujuan = max(0, $rakTujuan->Kapasitas - $terpakaiTujuan);
+
+        if ($sisaTujuan <= 0) {
+            return back()->with('error', "Rak {$rakTujuan->Kode_Rak} sudah penuh dan tidak dapat menerima barang.");
+        }
+
+        // Batasi qty ke sisa kapasitas rak tujuan
+        $qtyDipindah = min($request->qty, $sisaTujuan);
+        $sisaTidakDipindah = $request->qty - $qtyDipindah;
+
+        DB::beginTransaction();
+        try {
+            // Ubah Rack_ID di inbound_details sebanyak qty yang dipindahkan
+            // Ambil inbound detail records untuk SKU ini di rak asal, update satu per satu
+            $remaining = $qtyDipindah;
+            $inboundDetails = InboundDetail::where('SKU', $barang->SKU)
+                ->where('Rack_ID', $rakAsal->Rack_ID)
+                ->orderBy('created_at')
+                ->get();
+
+            foreach ($inboundDetails as $detail) {
+                if ($remaining <= 0) break;
+
+                if ($detail->Qty <= $remaining) {
+                    // Pindahkan seluruh record ini
+                    $detail->update(['Rack_ID' => $rakTujuan->Rack_ID]);
+                    $remaining -= $detail->Qty;
+                } else {
+                    // Split record: sebagian tetap di rak asal, sebagian pindah
+                    $detail->update(['Qty' => $detail->Qty - $remaining]);
+                    InboundDetail::create([
+                        'Inbound_ID'       => $detail->Inbound_ID,
+                        'SKU'              => $detail->SKU,
+                        'Rack_ID'          => $rakTujuan->Rack_ID,
+                        'Qty'              => $remaining,
+                        'No_Resi_Supplier' => $detail->No_Resi_Supplier,
+                        'Batch'            => $detail->Batch,
+                    ]);
+                    $remaining = 0;
+                }
+            }
+
+            // Jika seluruh stok dipindahkan → update default rack barang
+            if ($qtyDipindah >= $stokAsal) {
+                $barang->update(['Rack_ID' => $rakTujuan->Rack_ID]);
+            }
+
+            DB::commit();
+
+            $sisaMsg = $sisaTidakDipindah > 0
+                ? " Sisa {$sisaTidakDipindah} unit tetap di rak {$rakAsal->Kode_Rak} karena kapasitas rak tujuan hanya tersedia {$sisaTujuan} unit."
+                : '';
+
+            ActivityLog::record("Barang [{$barang->SKU} - {$barang->Nama}] dipindah {$qtyDipindah} unit dari rak [{$rakAsal->Kode_Rak}] ke [{$rakTujuan->Kode_Rak}] oleh [{$this->operatorLabel()}].{$sisaMsg}");
+
+            return redirect()->route('master.rak.show', $id)
+                ->with('success', "{$qtyDipindah} unit {$barang->Nama} berhasil dipindahkan ke rak {$rakTujuan->Kode_Rak}.{$sisaMsg}");
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal memindahkan barang: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Simpan lokasi rak baru (Admin only).
      */
     public function store(Request $request)
     {
@@ -44,49 +213,102 @@ class RackLocationController extends Controller
         ]);
 
         $rack = RackLocation::create($validated);
+        ActivityLog::record("Guru/Admin membuat Lokasi Rak baru: {$rack->Kode_Rak}");
 
-        ActivityLog::record("Guru/Admin membuat Lokasi Rak baru: {$rack->Kode_Rak} (Lorong {$rack->Aisle}, Level {$rack->Level}, Kapasitas {$rack->Kapasitas})");
-
-        return redirect()->route('master.rak.index')->with('success', "Lokasi Rak {$rack->Kode_Rak} berhasil ditambahkan!");
+        return redirect()->route('master.rak.index')
+            ->with('success', "Lokasi Rak {$rack->Kode_Rak} berhasil ditambahkan!");
     }
 
     /**
-     * Update data lokasi rak (Akses: HANYA Admin).
+     * Update lokasi rak (Admin only). Termasuk upload foto jika ada.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, string $id)
     {
         $rack = RackLocation::findOrFail($id);
 
         $validated = $request->validate([
-            'Kode_Rak'  => 'required|string|max:50|unique:rack_locations,Kode_Rak,' . $rack->Rack_ID . ',Rack_ID',
+            'Kode_Rak'  => "required|string|max:50|unique:rack_locations,Kode_Rak,{$rack->Rack_ID},Rack_ID",
             'Aisle'     => 'required|string|max:20',
             'Level'     => 'required|string|max:20',
             'Kapasitas' => 'required|integer|min:1',
         ]);
 
         $rack->update($validated);
-
         ActivityLog::record("Guru/Admin memperbarui Lokasi Rak: {$rack->Kode_Rak}");
 
-        return redirect()->route('master.rak.index')->with('success', "Data Lokasi Rak {$rack->Kode_Rak} berhasil diperbarui!");
+        return redirect()->route('master.rak.show', $id)
+            ->with('success', "Data Lokasi Rak {$rack->Kode_Rak} berhasil diperbarui!");
     }
 
     /**
-     * Hapus lokasi rak (Akses: HANYA Admin).
+     * Upload foto rak (Admin only) — endpoint terpisah.
      */
-    public function destroy($id)
+    public function uploadFoto(Request $request, string $id)
     {
         $rack = RackLocation::findOrFail($id);
 
-        if ($rack->masterBarang()->count() > 0 || $rack->inboundDetails()->count() > 0) {
-            return redirect()->route('master.rak.index')->with('error', "Lokasi Rak {$rack->Kode_Rak} tidak dapat dihapus karena sedang digunakan oleh data barang/transaksi.");
+        $request->validate([
+            'foto' => 'required|image|mimes:jpeg,jpg,png,webp|max:2048',
+        ], [
+            'foto.required' => 'Pilih foto terlebih dahulu.',
+            'foto.image'    => 'File harus berupa gambar.',
+            'foto.mimes'    => 'Format foto harus JPG, PNG, atau WebP.',
+            'foto.max'      => 'Ukuran foto maksimal 2 MB.',
+        ]);
+
+        // Hapus foto lama jika ada
+        if ($rack->foto_path && Storage::disk('public')->exists($rack->foto_path)) {
+            Storage::disk('public')->delete($rack->foto_path);
+        }
+
+        $path = $request->file('foto')->store('rak-foto', 'public');
+        $rack->update(['foto_path' => $path]);
+
+        ActivityLog::record("Admin mengupload foto Rak {$rack->Kode_Rak}.");
+
+        return redirect()->route('master.rak.show', $id)
+            ->with('success', "Foto rak {$rack->Kode_Rak} berhasil diupload.");
+    }
+
+    /**
+     * Hapus lokasi rak (Admin only) — hanya bisa jika tidak ada barang.
+     */
+    public function destroy(string $id)
+    {
+        $rack = RackLocation::findOrFail($id);
+
+        $jumlahBarang = MasterBarang::where('Rack_ID', $rack->Rack_ID)->count();
+        if ($jumlahBarang > 0) {
+            return redirect()->route('master.rak.show', $id)
+                ->with('error', "Rak {$rack->Kode_Rak} tidak dapat dihapus karena masih ada {$jumlahBarang} barang. Pindahkan semua barang terlebih dahulu.");
+        }
+
+        // Hapus foto jika ada
+        if ($rack->foto_path && Storage::disk('public')->exists($rack->foto_path)) {
+            Storage::disk('public')->delete($rack->foto_path);
         }
 
         $kode = $rack->Kode_Rak;
         $rack->delete();
-
         ActivityLog::record("Guru/Admin menghapus Lokasi Rak: {$kode}");
 
-        return redirect()->route('master.rak.index')->with('success', "Lokasi Rak {$kode} berhasil dihapus!");
+        return redirect()->route('master.rak.index')
+            ->with('success', "Lokasi Rak {$kode} berhasil dihapus!");
+    }
+
+    // =========================================================
+    // PRIVATE HELPERS
+    // =========================================================
+
+    private function operatorLabel(): string
+    {
+        $user = Auth::user();
+        if (!$user) return 'Sistem';
+        if ($user->isAdmin()) return 'Guru: ' . $user->name;
+        $identity = session('student_identity');
+        if ($identity && !empty($identity['name'])) {
+            return "Operator: {$identity['name']} | {$identity['class']}";
+        }
+        return 'Siswa: ' . $user->name;
     }
 }

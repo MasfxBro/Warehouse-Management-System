@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // CORS harus di global middleware paling atas agar preflight OPTIONS
+        // dari Flutter Web (Chrome) dibalas sebelum middleware lain berjalan
+        $middleware->prepend([
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
         $middleware->web(append: [
             \App\Http\Middleware\NoPrefetch::class,
         ]);

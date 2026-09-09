@@ -83,6 +83,7 @@ class InventoryApiController extends Controller
                     'nama'     => $barang->Nama,
                     'kategori' => $barang->Kategori,
                     'stok'     => $barang->stok,
+                    'min_stok' => $barang->Min_Stok,
                     'rack'     => $barang->rackLocation?->Kode_Rak ?? '-',
                 ],
                 'mutations' => $mutations,

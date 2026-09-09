@@ -9,28 +9,26 @@
     <!-- Student Banner -->
     @if(auth()->user()->isUser() && session()->has('student_identity'))
         @php $student = session('student_identity'); @endphp
-        <div class="flex items-center justify-between bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-sm">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-graduation-cap text-sm"></i>
-                </div>
+        <div class="flex items-center gap-4 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-sm">
+            <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-graduation-cap text-sm"></i>
+            </div>
+            <div class="flex items-center gap-6 text-[12px] flex-wrap">
                 <div>
-                    <p class="text-[13px] font-bold leading-tight">Sesi Praktikum Aktif</p>
-                    <p class="text-[11px] text-slate-400 mt-0.5">
-                        Operator: <strong class="text-white">{{ $student['name'] }}</strong>
-                        &nbsp;·&nbsp; Kelas: <strong class="text-white">{{ $student['class'] }}</strong>
-                        &nbsp;·&nbsp; NIS: <span class="font-mono text-slate-300">{{ $student['nis'] }}</span>
-                    </p>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">Nama Operator</p>
+                    <p class="font-bold text-white">{{ $student['name'] }}</p>
+                </div>
+                <div class="w-px h-8 bg-white/10 hidden sm:block"></div>
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">Kelas</p>
+                    <p class="font-bold text-white">{{ $student['class'] }}</p>
+                </div>
+                <div class="w-px h-8 bg-white/10 hidden sm:block"></div>
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">NIS</p>
+                    <p class="font-bold font-mono text-slate-200">{{ $student['nis'] }}</p>
                 </div>
             </div>
-            <form action="{{ route('student-identity.reset') }}" method="POST">
-                @csrf
-                <button type="submit"
-                        class="text-[11px] bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5">
-                    <i class="fa-solid fa-rotate text-[10px]"></i>
-                    Ganti Sesi
-                </button>
-            </form>
         </div>
     @endif
 
@@ -77,27 +75,68 @@
             </div>
         </div>
 
-        <!-- Inbound Hari Ini -->
-        <div class="stat-card">
-            <div>
-                <p class="stat-card-label">Inbound Hari Ini</p>
-                <p class="stat-card-value text-[#10b981]">{{ number_format($inboundTodayCount) }}</p>
-                <p class="stat-card-sub">Transaksi masuk</p>
+        <!-- Inbound & Outbound dengan filter periode — span 2 kolom -->
+        <div class="stat-card lg:col-span-2 flex-col gap-3 items-stretch">
+            {{-- Header: label + filter periode --}}
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+                <p class="stat-card-label">Transaksi Masuk & Keluar</p>
+                {{-- Filter Periode — konsep sama dengan chart period selector --}}
+                <div class="inline-flex rounded-lg border border-[#e2e8f0] bg-[#f7f9fb] p-0.5 gap-0.5 flex-wrap">
+                    @foreach([
+                        'hari_ini' => 'Hari Ini',
+                        '7_hari'   => '7 Hari',
+                        '1_bulan'  => '1 Bulan',
+                        '1_tahun'  => '1 Tahun',
+                        'semua'    => 'Semua',
+                    ] as $key => $label)
+                        <a href="{{ route('dashboard', array_merge(request()->query(), ['period_trx' => $key, 'period' => $period])) }}"
+                           class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors
+                                  {{ $periodTrx === $key ? 'bg-white text-secondary font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800' }}">
+                            {{ $label }}
+                        </a>
+                    @endforeach
+                </div>
             </div>
-            <div class="stat-card-icon bg-emerald-50 text-[#10b981]">
-                <i class="fa-solid fa-truck-ramp-box text-base"></i>
-            </div>
-        </div>
-
-        <!-- Outbound Hari Ini -->
-        <div class="stat-card">
-            <div>
-                <p class="stat-card-label">Outbound Hari Ini</p>
-                <p class="stat-card-value text-secondary">{{ number_format($outboundTodayCount) }}</p>
-                <p class="stat-card-sub">Transaksi keluar</p>
-            </div>
-            <div class="stat-card-icon bg-blue-50 text-secondary">
-                <i class="fa-solid fa-arrow-up-from-bracket text-base"></i>
+            {{-- Dua angka stat side by side --}}
+            <div class="grid grid-cols-2 gap-4 pt-1">
+                {{-- Inbound --}}
+                <div class="flex items-center justify-between gap-3 bg-emerald-50 rounded-xl px-4 py-3">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-0.5">Inbound</p>
+                        <p class="text-2xl font-extrabold text-emerald-700 font-mono leading-none">{{ number_format($inboundTodayCount) }}</p>
+                        <p class="text-[11px] text-emerald-600 mt-1">
+                            {{ match($periodTrx) {
+                                '7_hari'  => '7 hari terakhir',
+                                '1_bulan' => '30 hari terakhir',
+                                '1_tahun' => '1 tahun terakhir',
+                                'semua'   => 'Seluruh data',
+                                default   => 'Hari ini',
+                            } }}
+                        </p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-truck-ramp-box text-base"></i>
+                    </div>
+                </div>
+                {{-- Outbound --}}
+                <div class="flex items-center justify-between gap-3 bg-blue-50 rounded-xl px-4 py-3">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-secondary mb-0.5">Outbound</p>
+                        <p class="text-2xl font-extrabold text-secondary font-mono leading-none">{{ number_format($outboundTodayCount) }}</p>
+                        <p class="text-[11px] text-secondary mt-1">
+                            {{ match($periodTrx) {
+                                '7_hari'  => '7 hari terakhir',
+                                '1_bulan' => '30 hari terakhir',
+                                '1_tahun' => '1 tahun terakhir',
+                                'semua'   => 'Seluruh data',
+                                default   => 'Hari ini',
+                            } }}
+                        </p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-blue-100 text-secondary flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-arrow-up-from-bracket text-base"></i>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -199,11 +238,6 @@
                 <h3 class="wms-card-title">Critical Stock Alerts</h3>
                 <span class="badge badge-danger font-mono">{{ $lowStockCount }} item</span>
             </div>
-            <a href="{{ route('inventory.kartu-stok.index') }}"
-               class="text-[11px] text-secondary hover:underline flex items-center gap-1">
-                View All Inventory
-                <i class="fa-solid fa-arrow-right text-[10px]"></i>
-            </a>
         </div>
 
         <div class="overflow-x-auto">
@@ -217,12 +251,11 @@
                             <th class="text-right">Stok Saat Ini</th>
                             <th class="text-right">Min. Stok</th>
                             <th>Status</th>
-                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($lowStockItems as $item)
-                            @php $stok = $item->stok; @endphp
+                            @php $stok = $item->computed_stok; @endphp
                             <tr>
                                 <td class="font-mono font-semibold text-secondary">
                                     {{ $item->SKU }}
@@ -244,16 +277,60 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td>
-                                    <a href="{{ route('inbound.create') }}"
-                                       class="text-[11px] text-secondary hover:underline font-medium">
-                                        + Inbound
-                                    </a>
-                                </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
+
+                {{-- Pagination — muncul hanya jika data > 10 --}}
+                @if($lowStockItems->hasPages())
+                    <div class="px-5 py-3 border-t border-[#e2e8f0] bg-surface-low flex items-center justify-between gap-4 flex-wrap">
+                        <p class="text-[11px] text-slate-400">
+                            Menampilkan {{ $lowStockItems->firstItem() }}–{{ $lowStockItems->lastItem() }}
+                            dari <span class="font-semibold text-slate-600">{{ $lowStockItems->total() }}</span> item kritis
+                        </p>
+                        <div class="flex items-center gap-1">
+                            {{-- Prev --}}
+                            @if($lowStockItems->onFirstPage())
+                                <span class="px-2.5 py-1 rounded-md text-[11px] text-slate-300 border border-[#e2e8f0] cursor-not-allowed bg-white">
+                                    <i class="fa-solid fa-chevron-left text-[9px]"></i>
+                                </span>
+                            @else
+                                <a href="{{ $lowStockItems->previousPageUrl() }}"
+                                   class="px-2.5 py-1 rounded-md text-[11px] text-slate-600 border border-[#e2e8f0] hover:bg-white hover:border-secondary hover:text-secondary transition-colors">
+                                    <i class="fa-solid fa-chevron-left text-[9px]"></i>
+                                </a>
+                            @endif
+
+                            {{-- Nomor halaman --}}
+                            @foreach($lowStockItems->getUrlRange(1, $lowStockItems->lastPage()) as $page => $url)
+                                @if($page == $lowStockItems->currentPage())
+                                    <span class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-secondary text-white border border-secondary">
+                                        {{ $page }}
+                                    </span>
+                                @else
+                                    <a href="{{ $url }}"
+                                       class="px-2.5 py-1 rounded-md text-[11px] text-slate-600 border border-[#e2e8f0] hover:bg-white hover:border-secondary hover:text-secondary transition-colors">
+                                        {{ $page }}
+                                    </a>
+                                @endif
+                            @endforeach
+
+                            {{-- Next --}}
+                            @if($lowStockItems->hasMorePages())
+                                <a href="{{ $lowStockItems->nextPageUrl() }}"
+                                   class="px-2.5 py-1 rounded-md text-[11px] text-slate-600 border border-[#e2e8f0] hover:bg-white hover:border-secondary hover:text-secondary transition-colors">
+                                    <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                                </a>
+                            @else
+                                <span class="px-2.5 py-1 rounded-md text-[11px] text-slate-300 border border-[#e2e8f0] cursor-not-allowed bg-white">
+                                    <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
             @else
                 <div class="py-10 text-center text-[11px] text-slate-400 space-y-2">
                     <i class="fa-solid fa-shield-halved text-3xl text-emerald-400 block"></i>

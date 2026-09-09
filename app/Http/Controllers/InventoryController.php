@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\InboundDetail;
 use App\Models\MasterBarang;
 use App\Models\OutboundDetail;
+use Illuminate\Http\Request;
 
 class InventoryController extends Controller
 {
@@ -12,10 +13,30 @@ class InventoryController extends Controller
     // KARTU STOK — Index semua barang
     // =========================================================
 
-    public function kartuStokIndex()
+    public function kartuStokIndex(Request $request)
     {
-        $items = MasterBarang::with('rackLocation')->get();
-        return view('inventory.kartu-stok', compact('items'));
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Fitur Kartu Stok hanya tersedia untuk Guru (Admin).');
+        }
+
+        $search = $request->query('search');
+
+        $query = MasterBarang::with('rackLocation')
+            ->withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty');
+
+        if ($search) {
+            $s = strtolower($search);
+            $query->where(function ($q) use ($s) {
+                $q->whereRaw('LOWER("SKU") LIKE ?', ["%{$s}%"])
+                  ->orWhereRaw('LOWER("Nama") LIKE ?', ["%{$s}%"])
+                  ->orWhereRaw('LOWER("Kategori") LIKE ?', ["%{$s}%"]);
+            });
+        }
+
+        $items = $query->paginate(15)->withQueryString();
+
+        return view('inventory.kartu-stok', compact('items', 'search'));
     }
 
     // =========================================================
@@ -24,6 +45,11 @@ class InventoryController extends Controller
 
     public function kartuStokDetail(string $sku)
     {
+        // Hanya Admin yang boleh akses detail Kartu Stok
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Fitur Kartu Stok hanya tersedia untuk Guru (Admin).');
+        }
+
         $barang = MasterBarang::with('rackLocation')->findOrFail($sku);
 
         // Ambil semua inbound untuk SKU ini

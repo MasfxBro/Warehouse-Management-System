@@ -3,7 +3,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "concurrently --kill-others -n \"PHP,VITE\" -c \"blue,green\" \"php artisan serve\" \"vite\""
     },
     "devDependencies": {
         "@fortawesome/fontawesome-free": "^6.7.2",

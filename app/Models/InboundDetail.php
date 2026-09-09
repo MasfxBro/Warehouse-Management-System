@@ -7,36 +7,28 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * Model: InboundDetail
- *
- * Detail baris barang dalam transaksi penerimaan inbound.
- */
 class InboundDetail extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'inbound_details';
+    protected $table      = 'inbound_details';
     protected $primaryKey = 'Detail_ID';
+    public    $incrementing = false;
+    protected $keyType    = 'string';
 
-    protected $fillable = [
-        'Inbound_ID',
-        'SKU',
-        'Rack_ID',
-        'Qty',
-        'No_Resi_Supplier',
-        'Batch',
-    ];
+    protected $fillable = ['Inbound_ID', 'SKU', 'Rack_ID', 'Qty', 'No_Resi_Supplier', 'Batch'];
 
-    protected $casts = [
-        'Inbound_ID' => 'integer',
-        'Rack_ID'    => 'integer',
-        'Qty'        => 'integer',
-    ];
+    protected $casts = ['Qty' => 'integer'];
 
-    // =========================================================
-    // RELASI
-    // =========================================================
+    protected static function boot(): void
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            if (empty($model->{$model->getKeyName()})) {
+                $model->{$model->getKeyName()} = (string) \Illuminate\Support\Str::orderedUuid();
+            }
+        });
+    }
 
     public function inboundTransaction(): BelongsTo
     {

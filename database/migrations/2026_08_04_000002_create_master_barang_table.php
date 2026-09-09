@@ -32,7 +32,7 @@ return new class extends Migration
             $table->string('Barcode_ID', 100)->nullable()->unique()->comment('ID barcode untuk scanning fisik');
 
             // FK ke rack_locations — lokasi default penyimpanan barang
-            $table->unsignedBigInteger('Rack_ID')->nullable()->comment('Lokasi default rak penyimpanan');
+            $table->uuid('Rack_ID')->nullable()->comment('Lokasi default rak penyimpanan');
             $table->foreign('Rack_ID')
                   ->references('Rack_ID')
                   ->on('rack_locations')

@@ -17,16 +17,22 @@ class Customer extends Model
 {
     use HasFactory, HasTitleCaseAttributes;
 
-    protected $table = 'customers';
+    protected $table      = 'customers';
     protected $primaryKey = 'Customer_ID';
+    public    $incrementing = false;
+    protected $keyType    = 'string';
 
-    protected $fillable = [
-        'Nama',
-        'Kontak',
-        'No_Kontak',
-        'Email',
-        'Alamat',
-    ];
+    protected $fillable = ['Nama', 'Kontak', 'No_Kontak', 'Email', 'Alamat'];
+
+    protected static function boot(): void
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            if (empty($model->{$model->getKeyName()})) {
+                $model->{$model->getKeyName()} = (string) \Illuminate\Support\Str::orderedUuid();
+            }
+        });
+    }
 
     // =========================================================
     // AUTO-TITLE CASE MUTATORS (BACKEND ENGINE)

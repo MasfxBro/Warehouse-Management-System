@@ -29,10 +29,10 @@ class OutboundController extends Controller
             $query->where('Customer_ID', $request->customer_id);
         }
 
-        // Tabel 1 — Picking Task Queue (belum complete)
-        $pickingQueue = (clone $query)->where('picking_status', 'not_complete')->get();
+        // Tabel 1 — Picking Task Queue (belum complete) — paginate 15
+        $pickingQueue = (clone $query)->where('picking_status', 'not_complete')->paginate(15, ['*'], 'queue_page')->withQueryString();
 
-        // Tabel 2 — Riwayat Outbound (sudah complete)
+        // Tabel 2 — Riwayat Outbound (sudah complete) — paginate 15
         $riwayat = (clone $query)->where('picking_status', 'complete')->paginate(15)->withQueryString();
 
         $customers = Customer::orderBy('Nama')->get();
@@ -49,12 +49,31 @@ class OutboundController extends Controller
         $customers = Customer::orderBy('Nama')->get();
 
         // Hanya tampilkan barang yang stok > 0
+        // Eager load sum untuk menghindari N+1 query (60+ queries jadi 3)
         $barangs = MasterBarang::with('rackLocation')
+            ->withSum('inboundDetails as inbound_qty', 'Qty')
+            ->withSum('outboundDetails as outbound_qty', 'Qty')
             ->get()
-            ->filter(fn ($b) => $b->stok > 0)
+            ->map(function ($b) {
+                // Hitung stok dari sum yang sudah di-eager load
+                $b->computed_stok = max(0, (int)($b->inbound_qty ?? 0) - (int)($b->outbound_qty ?? 0));
+                return $b;
+            })
+            ->filter(fn ($b) => $b->computed_stok > 0)
             ->values();
 
-        return view('outbound.create', compact('customers', 'barangs'));
+        // Pre-mapped array untuk JS — hindari arrow function PHP di @json() Blade (ParseError)
+        $barangsJs = $barangs->map(function ($b) {
+            return [
+                'sku'      => $b->SKU,
+                'nama'     => $b->Nama,
+                'stok'     => $b->computed_stok,
+                'rack_id'  => $b->Rack_ID,
+                'kode_rak' => $b->rackLocation ? $b->rackLocation->Kode_Rak : '-',
+            ];
+        })->values()->all();
+
+        return view('outbound.create', compact('customers', 'barangs', 'barangsJs'));
     }
 
     // =========================================================
@@ -122,6 +141,8 @@ class OutboundController extends Controller
 
             ActivityLog::record("Transaksi Outbound baru dibuat dengan No. [{$noShipping}] oleh [{$this->operatorLabel()}].");
 
+            session()->save();
+
             return redirect()->route('outbound.show', $outbound->Outbound_ID)
                 ->with('success', "Outbound {$noShipping} berhasil dibuat. Selesaikan Picking List untuk mencetak Surat Jalan.");
 
@@ -135,7 +156,7 @@ class OutboundController extends Controller
     // SHOW — Detail Outbound
     // =========================================================
 
-    public function show(int $id)
+    public function show(string $id)
     {
         $outbound = OutboundTransaction::with([
             'customer',
@@ -151,7 +172,7 @@ class OutboundController extends Controller
     // SHOW PICKING LIST — Detail Picking
     // =========================================================
 
-    public function showPickingList(int $id)
+    public function showPickingList(string $id)
     {
         $outbound = OutboundTransaction::with([
             'customer',
@@ -167,7 +188,7 @@ class OutboundController extends Controller
     // COMPLETE PICKING — Mark Picking List as Complete
     // =========================================================
 
-    public function completePicking(int $id)
+    public function completePicking(string $id)
     {
         $outbound = OutboundTransaction::findOrFail($id);
 
@@ -187,7 +208,7 @@ class OutboundController extends Controller
     // DOWNLOAD SURAT JALAN PDF — Gatekeeping: harus complete
     // =========================================================
 
-    public function downloadSuratJalan(int $id)
+    public function downloadSuratJalan(string $id)
     {
         $outbound = OutboundTransaction::with([
             'customer',
@@ -200,8 +221,13 @@ class OutboundController extends Controller
             abort(403, 'Surat Jalan hanya dapat dicetak setelah Picking List selesai.');
         }
 
-        $pdf = Pdf::loadView('outbound.surat-jalan-pdf', compact('outbound'));
-        $pdf->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView('outbound.surat-jalan-pdf', compact('outbound'))
+            ->setPaper('a4', 'portrait')
+            ->setOption('margin_top', 0)
+            ->setOption('margin_bottom', 0)
+            ->setOption('margin_left', 0)
+            ->setOption('margin_right', 0)
+            ->setOption('isRemoteEnabled', false);
 
         $filename = 'Surat_Jalan_' . $outbound->No_Shipping . '.pdf';
         return $pdf->download($filename);

@@ -8,43 +8,33 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * Model: InboundTransaction
- *
- * Header transaksi penerimaan barang dari supplier (RSI-YYYYMMDD-XXXX).
- */
 class InboundTransaction extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'inbound_transactions';
+    protected $table      = 'inbound_transactions';
     protected $primaryKey = 'Inbound_ID';
+    public    $incrementing = false;
+    protected $keyType    = 'string';
 
-    protected $fillable = [
-        'No_Receiving',
-        'Tanggal',
-        'Supplier_ID',
-        'User_ID',
-        'Catatan',
-    ];
+    protected $fillable = ['No_Receiving', 'Tanggal', 'Supplier_ID', 'User_ID', 'Catatan'];
 
     protected $casts = [
-        'Tanggal'     => 'date',
-        'Supplier_ID' => 'integer',
-        'User_ID'     => 'integer',
+        'Tanggal'    => 'date',
+        'User_ID'    => 'integer',
     ];
 
-    /**
-     * Accessor alias untuk No_Resi.
-     */
-    public function getNoResiAttribute(): string
+    protected static function boot(): void
     {
-        return $this->No_Receiving;
+        parent::boot();
+        static::creating(function ($model) {
+            if (empty($model->{$model->getKeyName()})) {
+                $model->{$model->getKeyName()} = (string) \Illuminate\Support\Str::orderedUuid();
+            }
+        });
     }
 
-    // =========================================================
-    // RELASI
-    // =========================================================
+    public function getNoResiAttribute(): string { return $this->No_Receiving; }
 
     public function supplier(): BelongsTo
     {

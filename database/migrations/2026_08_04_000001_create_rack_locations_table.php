@@ -15,8 +15,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('rack_locations', function (Blueprint $table) {
-            // Primary Key — auto increment sesuai best practice Laravel
-            $table->id('Rack_ID');
+            // Primary Key — UUID
+            $table->uuid('Rack_ID')->primary()->comment('UUID primary key');
 
             // Kode unik untuk identifikasi rak (misal: R-A1-01)
             $table->string('Kode_Rak', 50)->unique()->comment('Kode unik rak, contoh: R-A1-01');

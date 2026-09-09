@@ -40,17 +40,27 @@ Route::middleware(['auth', 'student.identity'])->group(function () {
         
         // Lokasi Rak
         Route::get('/rak', [RackLocationController::class, 'index'])->name('rak.index');
+        Route::get('/rak/{id}', [RackLocationController::class, 'show'])->name('rak.show');
+        // Pindah barang: Admin & Siswa bisa
+        Route::post('/rak/{id}/pindah-barang', [RackLocationController::class, 'pindahBarang'])->name('rak.pindah-barang');
         Route::middleware('role:admin')->group(function () {
             Route::post('/rak', [RackLocationController::class, 'store'])->name('rak.store');
             Route::put('/rak/{id}', [RackLocationController::class, 'update'])->name('rak.update');
             Route::delete('/rak/{id}', [RackLocationController::class, 'destroy'])->name('rak.destroy');
+            Route::post('/rak/{id}/upload-foto', [RackLocationController::class, 'uploadFoto'])->name('rak.upload-foto');
         });
 
-        // Supplier (Pure Read-Only)
+        // Supplier
         Route::get('/supplier', [SupplierController::class, 'index'])->name('supplier.index');
+        Route::middleware('role:admin')->group(function () {
+            Route::put('/supplier/{id}', [SupplierController::class, 'update'])->name('supplier.update');
+        });
 
-        // Customer (Pure Read-Only)
+        // Customer (Pure Read-Only + Edit Admin)
         Route::get('/customer', [CustomerController::class, 'index'])->name('customer.index');
+        Route::middleware('role:admin')->group(function () {
+            Route::put('/customer/{id}', [CustomerController::class, 'update'])->name('customer.update');
+        });
 
         // Data Barang (Pure Read-Only + Detail, QR & Label PDF)
         Route::get('/barang', [MasterBarangController::class, 'index'])->name('barang.index');
@@ -89,13 +99,10 @@ Route::middleware(['auth', 'student.identity'])->group(function () {
         Route::get('/kartu-stok', [InventoryController::class, 'kartuStokIndex'])->name('kartu-stok.index');
         Route::get('/kartu-stok/{sku}', [InventoryController::class, 'kartuStokDetail'])->name('kartu-stok.detail');
 
-        // Stock Opname — Full CRUD (Admin & Siswa)
+        // Stock Opname — Tambah & Lihat saja (edit/hapus via modal Detail di index)
         Route::get('/stock-opname', [StockOpnameController::class, 'index'])->name('stock-opname.index');
         Route::get('/stock-opname/create', [StockOpnameController::class, 'create'])->name('stock-opname.create');
         Route::post('/stock-opname', [StockOpnameController::class, 'store'])->name('stock-opname.store');
-        Route::get('/stock-opname/{id}/edit', [StockOpnameController::class, 'edit'])->name('stock-opname.edit');
-        Route::put('/stock-opname/{id}', [StockOpnameController::class, 'update'])->name('stock-opname.update');
-        Route::delete('/stock-opname/{id}', [StockOpnameController::class, 'destroy'])->name('stock-opname.destroy');
     });
 
     // LAPORAN & EXPORT
