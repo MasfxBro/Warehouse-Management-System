@@ -134,22 +134,19 @@
             </tr>
         </thead>
         <tbody>
-            @php $totalQty = 0; @endphp
             @foreach($outbound->outboundDetails as $i => $detail)
                 <tr>
                     <td class="text-center">{{ $i + 1 }}</td>
                     <td class="mono"><strong>{{ $detail->SKU }}</strong></td>
                     <td>{{ $detail->masterBarang->Nama ?? '-' }}</td>
-                    <td>{{ $detail->masterBarang->Kategori ?? '-' }}</td>
+                    <td>{{ $detail->masterBarang->Satuan ?? 'PCS' }}</td>
                     <td class="text-right mono"><strong>{{ number_format($detail->Qty) }}</strong></td>
                 </tr>
-                @php $totalQty += $detail->Qty; @endphp
             @endforeach
         </tbody>
         <tfoot>
             <tr class="total-row">
-                <td colspan="4" class="text-right">TOTAL QTY KELUAR:</td>
-                <td class="text-right mono">{{ number_format($totalQty) }}</td>
+                <td colspan="5" class="text-right">TOTAL: {{ $outbound->outboundDetails->count() }} BARIS BARANG</td>
             </tr>
         </tfoot>
     </table>

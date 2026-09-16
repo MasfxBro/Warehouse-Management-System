@@ -71,6 +71,12 @@
             </button>
         </div>
         <div id="items-container" class="space-y-4"></div>
+        <div class="flex justify-end pt-2">
+            <div class="w-full md:w-80 rounded-xl bg-slate-900 px-5 py-4 text-white">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-300">Total Nilai Inbound</p>
+                <p id="transaction-total" class="text-2xl font-black font-mono">Rp 0</p>
+            </div>
+        </div>
     </div>
 
     {{-- Submit --}}
@@ -129,12 +135,40 @@
     </div>
 </div>
 
+{{-- MODAL SATUAN DASAR --}}
+<div id="unit-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h4 class="modal-title flex items-center gap-2"><i class="fa-solid fa-ruler text-[#0058be]"></i> Tambah Satuan Dasar</h4>
+            <button type="button" onclick="closeUnitModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div>
+                <label class="wms-label">Nama Satuan <span class="text-red-500">*</span></label>
+                <input type="text" id="unit-name" maxlength="50" placeholder="Contoh: Botol, Karung, Palet..." class="wms-input">
+                <p class="text-[10px] text-slate-400 mt-1">Singkatan umum seperti PCS, KG, dan ML akan otomatis ditulis kapital.</p>
+            </div>
+            <p id="unit-error" class="text-red-500 text-xs hidden"></p>
+            <div class="modal-footer">
+                <button type="button" onclick="closeUnitModal()" class="btn btn-outline flex-1">Batal</button>
+                <button type="button" onclick="submitUnitModal()" id="unit-submit-btn" class="btn btn-primary flex-1 gap-1.5">
+                    <i class="fa-solid fa-plus"></i> Tambahkan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const masterBarangs  = @json($masterBarangsJs);
 const rackLocations  = @json($rackLocationsJs);
 const kategoriList   = @json($kategoriList);
+let satuanList       = @json($satuanList);
 const csrfToken      = '{{ csrf_token() }}';
 const supplierAjaxUrl = '{{ route("inbound.supplier.ajax") }}';
+const unitAjaxUrl     = '{{ route("inbound.unit.ajax") }}';
 let itemCount = 0;
 
 function buildRackOptions(sel=null){return '<option value="">— Pilih Rak —</option>'+rackLocations.map(r=>`<option value="${r.id}"${sel==r.id?' selected':''}>${r.label}</option>`).join('');}
@@ -167,10 +201,18 @@ function addBarisBarang(){
 
         {{-- Info read-only barang: tampil setelah barang dipilih --}}
         <div id="autofill-info-${idx}" class="hidden">
-            <div class="grid grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
                 <div>
                     <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Kategori</p>
                     <p id="af-kategori-${idx}" class="text-xs font-semibold text-slate-700">—</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Satuan Dasar</p>
+                    <p id="af-satuan-${idx}" class="text-xs font-semibold font-mono text-slate-700">—</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Harga Dasar</p>
+                    <p id="af-harga-${idx}" class="text-xs font-semibold font-mono text-slate-700">—</p>
                 </div>
                 <div>
                     <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Min. Stok</p>
@@ -204,7 +246,7 @@ function addBarisBarang(){
         </div>
     </div>
     <div id="panel-baru-${idx}" class="hidden space-y-3">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
                 <label class="wms-label">Nama Barang Baru *</label>
                 <input type="text" name="items[${idx}][Nama_baru]" placeholder="Nama lengkap..." class="wms-input">
@@ -214,6 +256,19 @@ function addBarisBarang(){
                 <input type="text" name="items[${idx}][Kategori_baru]" id="input-kategori-${idx}"
                        oninput="updateSkuPreview(${idx})" placeholder="Elektronik / Furnitur..." list="kat-list-${idx}" class="wms-input">
                 <datalist id="kat-list-${idx}">${kategoriList.map(k=>`<option value="${k}">`).join('')}</datalist>
+            </div>
+            <div>
+                <label class="wms-label">Satuan Dasar *</label>
+                <div class="flex gap-2">
+                    <input type="text" name="items[${idx}][Satuan_baru]" id="satuan-baru-${idx}"
+                           oninput="updateUnitAndSubtotal(${idx})" placeholder="PCS / Box / Kaleng..."
+                           list="satuan-list-${idx}" maxlength="50" class="wms-input flex-1">
+                    <button type="button" onclick="openUnitModal(${idx})" class="btn btn-outline btn-sm gap-1 flex-shrink-0">
+                        <i class="fa-solid fa-plus"></i> Baru
+                    </button>
+                </div>
+                <datalist id="satuan-list-${idx}">${satuanList.map(s=>`<option value="${s}">`).join('')}</datalist>
+                <p class="text-[10px] text-slate-400 mt-1">Pilih yang tersedia, ketik bebas, atau tambahkan ke katalog satuan.</p>
             </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -235,6 +290,27 @@ function addBarisBarang(){
             </div>
         </div>
     </div>
+    <div class="border-t border-[#e2e8f0] pt-3 grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+        <div>
+            <label class="wms-label"><i id="harga-lock-${idx}" class="fa-solid fa-lock text-[9px]"></i> Harga per <span id="harga-unit-${idx}">Satuan</span> *</label>
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
+                <input type="number" name="items[${idx}][Harga_Satuan]" id="harga-${idx}"
+                       min="0" max="999999999999" step="1" inputmode="numeric"
+                       oninput="updateSubtotal(${idx})" placeholder="Contoh: 50000"
+                       readonly class="wms-input font-mono bg-[#eceef0]" style="padding-left:2.5rem">
+            </div>
+            <p id="harga-help-${idx}" class="text-[10px] text-slate-400 mt-1">Pilih barang lama untuk mengambil harga dasarnya.</p>
+            <p id="err-harga-${idx}" class="hidden items-center gap-1 text-[11px] text-red-500 mt-1">
+                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Harga per satuan wajib berupa angka.
+            </p>
+        </div>
+        <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Subtotal Baris</p>
+            <p id="subtotal-${idx}" class="text-lg font-black font-mono text-emerald-800">Rp 0</p>
+            <p id="subtotal-formula-${idx}" class="text-[10px] text-emerald-700">Qty × harga satuan</p>
+        </div>
+    </div>
     <div class="border-t border-[#e2e8f0] pt-3">
         <label class="wms-label">No. Resi Supplier</label>
         <div class="flex items-center gap-3">
@@ -247,18 +323,38 @@ function addBarisBarang(){
         </div>
     </div>`;
     document.getElementById('items-container').appendChild(div);
+    // Hanya field dari jenis barang yang aktif yang boleh ikut dikirim.
+    // Kedua panel memiliki field bernama items[idx][Qty]; jika panel tersembunyi
+    // tetap enabled, nilai default Qty=1 dari panel lain dapat menimpa input user.
+    setPanelInputsEnabled(idx, 'lama');
     updateRemoveButtons();
     renumberRows();
     attachQtyListeners(idx);
+    configurePriceInput(idx, 'lama');
 }
 
-function removeRow(idx){const el=document.getElementById(`item-row-${idx}`);if(el)el.remove();updateRemoveButtons();renumberRows();}
+function removeRow(idx){const el=document.getElementById(`item-row-${idx}`);if(el)el.remove();updateRemoveButtons();renumberRows();updateTransactionTotal();}
 function updateRemoveButtons(){const rows=document.querySelectorAll('.item-row');rows.forEach(r=>{const b=r.querySelector('.remove-btn');if(b)b.style.display=rows.length<=1?'none':'flex';});}
 function renumberRows(){document.querySelectorAll('.row-num').forEach((el,i)=>el.textContent=i+1);}
+
+function setPanelInputsEnabled(idx, jenis) {
+    const panelLama = document.getElementById(`panel-lama-${idx}`);
+    const panelBaru = document.getElementById(`panel-baru-${idx}`);
+
+    panelLama?.querySelectorAll('input, select, textarea').forEach(el => {
+        el.disabled = jenis !== 'lama';
+    });
+    panelBaru?.querySelectorAll('input, select, textarea').forEach(el => {
+        el.disabled = jenis !== 'baru';
+    });
+}
 
 function toggleJenis(idx,jenis){
     document.getElementById(`panel-lama-${idx}`).classList.toggle('hidden',jenis!=='lama');
     document.getElementById(`panel-baru-${idx}`).classList.toggle('hidden',jenis!=='baru');
+    setPanelInputsEnabled(idx, jenis);
+    configurePriceInput(idx, jenis);
+    updateUnitAndSubtotal(idx);
 }
 function autoFillBarang(idx){
     const sku = document.getElementById(`select-barang-${idx}`).value;
@@ -269,6 +365,8 @@ function autoFillBarang(idx){
     if (b) {
         // Isi info read-only
         document.getElementById(`af-kategori-${idx}`).textContent = b.kategori || '-';
+        document.getElementById(`af-satuan-${idx}`).textContent   = b.satuan || 'PCS';
+        document.getElementById(`af-harga-${idx}`).textContent    = formatRupiah(b.harga || 0);
         document.getElementById(`af-minstok-${idx}`).textContent  = b.min_stok || '0';
         info.classList.remove('hidden');
 
@@ -277,13 +375,93 @@ function autoFillBarang(idx){
         const rakSel = document.getElementById(`rack-lama-${idx}`);
         if (rakSel) rakSel.value = '';
 
-        // Reset qty
+        // Reset qty — max akan di-set ulang via onRakLamaChange saat user pilih rak
         const qtyEl = document.getElementById(`qty-lama-${idx}`);
-        if (qtyEl) { qtyEl.value = 1; qtyEl.removeAttribute('max'); }
+        if (qtyEl) {
+            qtyEl.value = 1;
+            qtyEl.removeAttribute('max');
+        }
     } else {
         info.classList.add('hidden');
         rakQtyWrap.classList.add('hidden');
     }
+    configurePriceInput(idx, 'lama');
+    updateUnitAndSubtotal(idx);
+}
+
+function configurePriceInput(idx, jenis) {
+    const hargaEl = document.getElementById(`harga-${idx}`);
+    const helpEl = document.getElementById(`harga-help-${idx}`);
+    const lockEl = document.getElementById(`harga-lock-${idx}`);
+    if (!hargaEl) return;
+
+    if (jenis === 'lama') {
+        const sku = document.getElementById(`select-barang-${idx}`)?.value;
+        const barang = masterBarangs.find(item => item.sku === sku);
+        hargaEl.readOnly = true;
+        hargaEl.value = barang?.harga ?? '';
+        hargaEl.classList.add('bg-[#eceef0]');
+        lockEl?.classList.remove('hidden');
+        if (helpEl) helpEl.textContent = barang
+            ? 'Harga dasar dikunci sesuai harga saat barang pertama kali diterima.'
+            : 'Pilih barang lama untuk mengambil harga dasarnya.';
+    } else {
+        hargaEl.readOnly = false;
+        hargaEl.value = '';
+        hargaEl.classList.remove('bg-[#eceef0]');
+        lockEl?.classList.add('hidden');
+        if (helpEl) helpEl.textContent = 'Harga ini akan menjadi harga dasar tetap untuk SKU baru.';
+    }
+
+    updateSubtotal(idx);
+}
+
+function formatRupiah(value) {
+    return 'Rp ' + new Intl.NumberFormat('id-ID').format(Number(value) || 0);
+}
+
+function activeQty(idx) {
+    const jenis = document.querySelector(`input[name="items[${idx}][jenis]"]:checked`)?.value;
+    return document.getElementById(`qty-${jenis === 'baru' ? 'baru' : 'lama'}-${idx}`);
+}
+
+function currentUnit(idx) {
+    const jenis = document.querySelector(`input[name="items[${idx}][jenis]"]:checked`)?.value;
+    if (jenis === 'baru') {
+        return document.getElementById(`satuan-baru-${idx}`)?.value.trim() || 'Satuan';
+    }
+    const sku = document.getElementById(`select-barang-${idx}`)?.value;
+    return masterBarangs.find(x => x.sku === sku)?.satuan || 'Satuan';
+}
+
+function updateUnitAndSubtotal(idx) {
+    const unit = currentUnit(idx);
+    const label = document.getElementById(`harga-unit-${idx}`);
+    if (label) label.textContent = unit;
+    updateSubtotal(idx);
+}
+
+function updateSubtotal(idx) {
+    const qty = Number(activeQty(idx)?.value) || 0;
+    const price = Number(document.getElementById(`harga-${idx}`)?.value) || 0;
+    const unit = currentUnit(idx);
+    const subtotal = document.getElementById(`subtotal-${idx}`);
+    const formula = document.getElementById(`subtotal-formula-${idx}`);
+    if (subtotal) subtotal.textContent = formatRupiah(qty * price);
+    if (formula) formula.textContent = `${new Intl.NumberFormat('id-ID').format(qty)} ${unit} × ${formatRupiah(price)}`;
+    updateTransactionTotal();
+}
+
+function updateTransactionTotal() {
+    let total = 0;
+    document.querySelectorAll('.item-row').forEach(row => {
+        const idx = row.id.replace('item-row-', '');
+        const qty = Number(activeQty(idx)?.value) || 0;
+        const price = Number(document.getElementById(`harga-${idx}`)?.value) || 0;
+        total += qty * price;
+    });
+    const totalEl = document.getElementById('transaction-total');
+    if (totalEl) totalEl.textContent = formatRupiah(total);
 }
 
 function onRakLamaChange(idx){
@@ -300,6 +478,7 @@ function onRakLamaChange(idx){
         qtyEl.removeAttribute('max');
     }
     validateQtyKapasitas(qtyEl, `err-qty-lama-${idx}`, `err-qty-lama-msg-${idx}`, sisa);
+    updateSubtotal(idx);
 }
 function updateSkuPreview(idx){
     const v=document.getElementById(`input-kategori-${idx}`).value;
@@ -346,6 +525,7 @@ function onRakBaruChange(idx) {
         if (parseInt(qtyEl.value) > sisa) qtyEl.value = sisa;
     }
     validateQtyKapasitas(qtyEl, `err-qty-baru-${idx}`, `err-qty-baru-msg-${idx}`, sisa);
+    updateSubtotal(idx);
 }
 
 // Listener realtime qty barang baru — dipasang setelah innerHTML di-set
@@ -358,6 +538,7 @@ function attachQtyListeners(idx) {
             const sisa = rakSel ? getSisaRak(rakSel.value) : Infinity;
             if (sisa !== Infinity && parseInt(this.value) > sisa) this.value = sisa;
             validateQtyKapasitas(this, `err-qty-baru-${idx}`, `err-qty-baru-msg-${idx}`, sisa);
+            updateSubtotal(idx);
         });
     }
     // Barang lama: qty berubah → validasi vs kapasitas rak yang dipilih
@@ -368,6 +549,7 @@ function attachQtyListeners(idx) {
             const sisa = rakLamaSel ? getSisaRak(rakLamaSel.value) : Infinity;
             if (sisa !== Infinity && parseInt(this.value) > sisa) this.value = sisa;
             validateQtyKapasitas(this, `err-qty-lama-${idx}`, `err-qty-lama-msg-${idx}`, sisa);
+            updateSubtotal(idx);
         });
     }
 }
@@ -404,6 +586,68 @@ function submitSupplierModal(){
     .finally(()=>{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-floppy-disk"></i> Simpan';});
 }
 document.getElementById('supplier-modal').addEventListener('click',function(e){if(e.target===this)closeSupplierModal();});
+
+let targetUnitRow = null;
+function openUnitModal(idx) {
+    targetUnitRow = idx;
+    document.getElementById('unit-modal').classList.remove('hidden');
+    document.getElementById('unit-name').focus();
+}
+function closeUnitModal() {
+    document.getElementById('unit-modal').classList.add('hidden');
+    document.getElementById('unit-name').value = '';
+    document.getElementById('unit-error').classList.add('hidden');
+    targetUnitRow = null;
+}
+function refreshUnitDatalists() {
+    const options = satuanList.map(s => `<option value="${s}">`).join('');
+    document.querySelectorAll('datalist[id^="satuan-list-"]').forEach(list => list.innerHTML = options);
+}
+function submitUnitModal() {
+    const nama = document.getElementById('unit-name').value.trim();
+    const errEl = document.getElementById('unit-error');
+    const btn = document.getElementById('unit-submit-btn');
+    if (!nama) {
+        errEl.textContent = 'Nama satuan wajib diisi.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+    fetch(unitAjaxUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json'},
+        body: JSON.stringify({Nama: nama})
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Satuan gagal disimpan.');
+        return data;
+    })
+    .then(data => {
+        if (!satuanList.includes(data.unit.nama)) {
+            satuanList.push(data.unit.nama);
+            satuanList.sort((a, b) => a.localeCompare(b, 'id'));
+            refreshUnitDatalists();
+        }
+        if (targetUnitRow !== null) {
+            const input = document.getElementById(`satuan-baru-${targetUnitRow}`);
+            if (input) input.value = data.unit.nama;
+            updateUnitAndSubtotal(targetUnitRow);
+        }
+        closeUnitModal();
+    })
+    .catch(error => {
+        errEl.textContent = error.message || 'Terjadi kesalahan.';
+        errEl.classList.remove('hidden');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-plus"></i> Tambahkan';
+    });
+}
+document.getElementById('unit-modal').addEventListener('click',function(e){if(e.target===this)closeUnitModal();});
 document.addEventListener('DOMContentLoaded',()=>addBarisBarang());
 
 // Validasi resi sebelum submit
@@ -470,6 +714,18 @@ document.getElementById('inbound-form').addEventListener('submit', function(e) {
         const idx = row.id.replace('item-row-', '');
         const jenisBaru = row.querySelector(`input[name="items[${idx}][jenis]"][value="baru"]`);
         const jenisLama = row.querySelector(`input[name="items[${idx}][jenis]"][value="lama"]`);
+        const hargaEl = document.getElementById(`harga-${idx}`);
+
+        if (!hargaEl || hargaEl.value === '' || Number(hargaEl.value) < 0 || !Number.isInteger(Number(hargaEl.value))) {
+            const errHarga = document.getElementById(`err-harga-${idx}`);
+            if (errHarga) { errHarga.classList.remove('hidden'); errHarga.classList.add('flex'); }
+            hargaEl?.classList.add('border-red-400');
+            valid = false;
+        } else {
+            const errHarga = document.getElementById(`err-harga-${idx}`);
+            if (errHarga) { errHarga.classList.add('hidden'); errHarga.classList.remove('flex'); }
+            hargaEl.classList.remove('border-red-400');
+        }
 
         if (jenisBaru && jenisBaru.checked) {
             const rakSel  = document.getElementById(`rack-baru-${idx}`);

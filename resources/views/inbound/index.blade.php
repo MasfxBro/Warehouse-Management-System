@@ -55,6 +55,7 @@
                             <th>Tanggal</th>
                             <th>Supplier</th>
                             <th>Total Jenis</th>
+                            <th class="text-right">Total Nilai</th>
                             <th>Catatan</th>
                             <th>Dicatat Oleh</th>
                             <th class="text-right">Aksi</th>
@@ -73,10 +74,14 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge badge-success">
-                                        <i class="fa-solid fa-box"></i>
-                                        {{ $trx->inboundDetails->count() }} jenis
-                                    </span>
+                                    @if($trx->isCancelled())
+                                        <span class="badge badge-danger"><i class="fa-solid fa-ban"></i> Dibatalkan</span>
+                                    @else
+                                        <span class="badge badge-success"><i class="fa-solid fa-box"></i> {{ $trx->inboundDetails->count() }} jenis</span>
+                                    @endif
+                                </td>
+                                <td class="text-right font-mono font-bold text-slate-800">
+                                    Rp {{ number_format($trx->total_nilai, 0, ',', '.') }}
                                 </td>
                                 <td class="text-slate-500 max-w-xs truncate text-xs">{{ $trx->Catatan ?? '—' }}</td>
                                 <td class="text-slate-600 text-xs">{{ $trx->user->name ?? '-' }}</td>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,41 +11,44 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class OutboundTransaction extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUuidPrimaryKey, SoftDeletes;
 
-    protected $table      = 'outbound_transactions';
+    protected $table = 'outbound_transactions';
+
     protected $primaryKey = 'Outbound_ID';
-    public    $incrementing = false;
-    protected $keyType    = 'string';
+
+    public $incrementing = false;
+
+    protected $keyType = 'string';
 
     protected $fillable = [
         'No_Shipping', 'Tanggal', 'Customer_ID', 'User_ID',
         'picking_status', 'priority', 'Nama_Penerima', 'Catatan',
+        'transaction_status', 'Cancelled_At', 'Cancelled_By', 'Cancellation_Reason', 'Practice_Session_ID',
     ];
 
     protected $casts = [
         'Tanggal' => 'date',
         'User_ID' => 'integer',
+        'Cancelled_At' => 'datetime',
     ];
 
-    protected static function boot(): void
+    public function isComplete(): bool
     {
-        parent::boot();
-        static::creating(function ($model) {
-            if (empty($model->{$model->getKeyName()})) {
-                $model->{$model->getKeyName()} = (string) \Illuminate\Support\Str::orderedUuid();
-            }
-        });
+        return ! $this->isCancelled() && $this->picking_status === 'complete';
     }
 
-    public function isComplete(): bool { return $this->picking_status === 'complete'; }
+    public function isCancelled(): bool
+    {
+        return $this->transaction_status === 'cancelled';
+    }
 
     public function priorityLabel(): string
     {
         return match ($this->priority) {
-            'high'   => 'High',
+            'high' => 'High',
             'normal' => 'Normal',
-            default  => 'Decent',
+            default => 'Decent',
         };
     }
 
@@ -61,5 +65,20 @@ class OutboundTransaction extends Model
     public function outboundDetails(): HasMany
     {
         return $this->hasMany(OutboundDetail::class, 'Outbound_ID', 'Outbound_ID');
+    }
+
+    public function allOutboundDetails(): HasMany
+    {
+        return $this->hasMany(OutboundDetail::class, 'Outbound_ID', 'Outbound_ID')->withTrashed();
+    }
+
+    public function practiceSession(): BelongsTo
+    {
+        return $this->belongsTo(PracticeSession::class, 'Practice_Session_ID');
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'Cancelled_By');
     }
 }

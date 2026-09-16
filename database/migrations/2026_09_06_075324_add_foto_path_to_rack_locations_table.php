@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('rack_locations', function (Blueprint $table) {
             $table->string('foto_path', 500)->nullable()->after('Kapasitas')
-                  ->comment('Path foto rak di storage/app/public/rak-foto/');
+                ->comment('Path foto rak di storage/app/public/rak-foto/');
         });
     }
 

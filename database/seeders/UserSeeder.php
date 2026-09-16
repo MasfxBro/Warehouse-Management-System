@@ -22,9 +22,9 @@ class UserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'admin@wms.local'],
             [
-                'name'              => 'Guru Administrator',
-                'password'          => Hash::make('password'),
-                'role'              => UserRole::Admin->value,
+                'name' => 'Guru Administrator',
+                'password' => Hash::make('password'),
+                'role' => UserRole::Admin->value,
                 'email_verified_at' => now(),
             ]
         );
@@ -32,9 +32,9 @@ class UserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'siswa@wms.local'],
             [
-                'name'              => 'Operator Siswa (Shared)',
-                'password'          => Hash::make('password'),
-                'role'              => UserRole::User->value,
+                'name' => 'Operator Siswa (Shared)',
+                'password' => Hash::make('password'),
+                'role' => UserRole::User->value,
                 'email_verified_at' => now(),
             ]
         );

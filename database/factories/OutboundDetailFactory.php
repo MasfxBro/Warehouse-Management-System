@@ -23,9 +23,9 @@ class OutboundDetailFactory extends Factory
         return [
             // Outbound_ID, SKU, dan Rack_ID diisi oleh seeder
             'Outbound_ID' => OutboundTransaction::inRandomOrder()->value('Outbound_ID'),
-            'SKU'         => MasterBarang::inRandomOrder()->value('SKU'),
-            'Rack_ID'     => RackLocation::inRandomOrder()->value('Rack_ID'),
-            'Qty'         => $this->faker->numberBetween(1, 100),
+            'SKU' => MasterBarang::inRandomOrder()->value('SKU'),
+            'Rack_ID' => RackLocation::inRandomOrder()->value('Rack_ID'),
+            'Qty' => $this->faker->numberBetween(1, 100),
         ];
     }
 
@@ -36,8 +36,8 @@ class OutboundDetailFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'Outbound_ID' => $outboundId,
-            'SKU'         => $sku,
-            'Rack_ID'     => $rackId,
+            'SKU' => $sku,
+            'Rack_ID' => $rackId,
         ]);
     }
 }

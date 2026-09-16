@@ -20,18 +20,18 @@ return new class extends Migration
             // FK ke master_barang (SKU)
             $table->string('SKU', 50);
             $table->foreign('SKU')
-                  ->references('SKU')
-                  ->on('master_barang')
-                  ->onDelete('cascade')
-                  ->onUpdate('cascade');
+                ->references('SKU')
+                ->on('master_barang')
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
 
             // FK ke users (pemeriksa)
             $table->unsignedBigInteger('User_ID');
             $table->foreign('User_ID')
-                  ->references('id')
-                  ->on('users')
-                  ->onDelete('restrict')
-                  ->onUpdate('cascade');
+                ->references('id')
+                ->on('users')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
 
             // Tanggal pemeriksaan
             $table->date('Tanggal');

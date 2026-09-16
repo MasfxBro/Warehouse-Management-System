@@ -7,7 +7,6 @@ use App\Exports\InventoriExport;
 use App\Exports\OutboundExport;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class LaporanController extends Controller
 {
@@ -26,11 +25,11 @@ class LaporanController extends Controller
 
     public function exportInventori()
     {
-        ActivityLog::record("Laporan Inventori di-export oleh [{$this->operatorLabel()}].");
+        ActivityLog::record('Laporan Inventori diekspor.');
 
-        $path = (new InventoriExport())->download();
+        $path = (new InventoriExport)->download();
 
-        return response()->download($path, 'Laporan_Inventori_' . now()->format('Ymd') . '.xlsx')
+        return response()->download($path, 'Laporan_Inventori_'.now()->format('Ymd').'.xlsx')
             ->deleteFileAfterSend();
     }
 
@@ -40,11 +39,15 @@ class LaporanController extends Controller
 
     public function exportInbound(Request $request)
     {
-        ActivityLog::record("Laporan Inbound di-export oleh [{$this->operatorLabel()}].");
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+        ActivityLog::record('Laporan Inbound diekspor.');
 
-        $path = (new InboundExport($request->from, $request->to))->download();
+        $path = (new InboundExport($validated['from'] ?? null, $validated['to'] ?? null))->download();
 
-        return response()->download($path, 'Laporan_Inbound_' . now()->format('Ymd') . '.xlsx')
+        return response()->download($path, 'Laporan_Inbound_'.now()->format('Ymd').'.xlsx')
             ->deleteFileAfterSend();
     }
 
@@ -54,11 +57,15 @@ class LaporanController extends Controller
 
     public function exportOutbound(Request $request)
     {
-        ActivityLog::record("Laporan Outbound di-export oleh [{$this->operatorLabel()}].");
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+        ActivityLog::record('Laporan Outbound diekspor.');
 
-        $path = (new OutboundExport($request->from, $request->to))->download();
+        $path = (new OutboundExport($validated['from'] ?? null, $validated['to'] ?? null))->download();
 
-        return response()->download($path, 'Laporan_Outbound_' . now()->format('Ymd') . '.xlsx')
+        return response()->download($path, 'Laporan_Outbound_'.now()->format('Ymd').'.xlsx')
             ->deleteFileAfterSend();
     }
 
@@ -66,16 +73,4 @@ class LaporanController extends Controller
     // PRIVATE HELPERS
     // =========================================================
 
-    private function operatorLabel(): string
-    {
-        $user = Auth::user();
-        if (!$user) return 'Sistem';
-        if ($user->isAdmin()) return 'Guru: ' . $user->name;
-
-        $identity = session('student_identity');
-        if ($identity && !empty($identity['name'])) {
-            return "Operator: {$identity['name']} | {$identity['class']}";
-        }
-        return 'Siswa: ' . $user->name;
-    }
 }

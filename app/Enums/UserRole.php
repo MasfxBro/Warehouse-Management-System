@@ -11,16 +11,16 @@ namespace App\Enums;
 enum UserRole: string
 {
     case Admin = 'admin';
-    case User  = 'user';
+    case User = 'user';
 
     /**
      * Mengembalikan label yang human-readable untuk setiap role.
      */
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             UserRole::Admin => 'Guru (Admin)',
-            UserRole::User  => 'Operator (Siswa)',
+            UserRole::User => 'Operator (Siswa)',
         };
     }
 
@@ -32,4 +32,3 @@ enum UserRole: string
         return array_column(self::cases(), 'value');
     }
 }
-

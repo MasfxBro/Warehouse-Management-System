@@ -24,11 +24,12 @@ class InboundDetailFactory extends Factory
         return [
             // Inbound_ID, SKU, dan Rack_ID diisi oleh seeder
             'Inbound_ID' => InboundTransaction::inRandomOrder()->value('Inbound_ID'),
-            'SKU'        => MasterBarang::inRandomOrder()->value('SKU'),
-            'Rack_ID'    => RackLocation::inRandomOrder()->value('Rack_ID'),
-            'Qty'        => $this->faker->numberBetween(1, 200),
+            'SKU' => MasterBarang::inRandomOrder()->value('SKU'),
+            'Rack_ID' => RackLocation::inRandomOrder()->value('Rack_ID'),
+            'Qty' => $this->faker->numberBetween(1, 200),
+            'Harga_Satuan' => $this->faker->numberBetween(10000, 5000000),
             // Batch bersifat opsional — 30% record tidak memiliki batch
-            'Batch'      => $this->faker->optional(0.7)->bothify('BCH-' . date('Y') . '-####'),
+            'Batch' => $this->faker->optional(0.7)->bothify('BCH-'.date('Y').'-####'),
         ];
     }
 
@@ -39,8 +40,8 @@ class InboundDetailFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'Inbound_ID' => $inboundId,
-            'SKU'        => $sku,
-            'Rack_ID'    => $rackId,
+            'SKU' => $sku,
+            'Rack_ID' => $rackId,
         ]);
     }
 }

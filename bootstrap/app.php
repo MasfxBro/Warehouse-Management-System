@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\CheckStudentIdentity;
+use App\Http\Middleware\NoPrefetch;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Session\TokenMismatchException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,15 +16,15 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
-            \App\Http\Middleware\NoPrefetch::class,
+            NoPrefetch::class,
         ]);
         $middleware->alias([
-            'student.identity' => \App\Http\Middleware\CheckStudentIdentity::class,
-            'role'             => \App\Http\Middleware\CheckRole::class,
+            'student.identity' => CheckStudentIdentity::class,
+            'role' => CheckRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, $request) {
+        $exceptions->render(function (TokenMismatchException $e, $request) {
             return redirect()->route('login')->with('info', 'Sesi halaman telah berakhir. Silakan masuk kembali.');
         });
     })->create();

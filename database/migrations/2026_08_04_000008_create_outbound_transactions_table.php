@@ -22,17 +22,17 @@ return new class extends Migration
             $table->date('Tanggal')->comment('Tanggal pengiriman barang ke customer');
             $table->uuid('Customer_ID')->comment('Customer penerima barang');
             $table->foreign('Customer_ID')
-                  ->references('Customer_ID')
-                  ->on('customers')
-                  ->onDelete('restrict')
-                  ->onUpdate('cascade');
+                ->references('Customer_ID')
+                ->on('customers')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
             $table->string('No_Surat_Jalan', 100)->nullable()->comment('Nomor surat jalan fisik yang menyertai pengiriman');
             $table->unsignedBigInteger('User_ID')->comment('User/operator yang memproses pengiriman');
             $table->foreign('User_ID')
-                  ->references('id')
-                  ->on('users')
-                  ->onDelete('restrict')
-                  ->onUpdate('cascade');
+                ->references('id')
+                ->on('users')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
 
             $table->timestamps();
 

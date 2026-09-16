@@ -129,7 +129,7 @@ const csrfToken = '{{ csrf_token() }}';
 const customerAjaxUrl = "{{ route('outbound.customer.ajax') }}";
 let itemCount = 0;
 
-function buildBarangOptions(){return '<option value="">— Pilih Barang —</option>'+barangs.map(b=>`<option value="${b.sku}" data-stok="${b.stok}">${b.sku} — ${b.nama} (Stok: ${b.stok})</option>`).join('');}
+function buildBarangOptions(){return '<option value="">— Pilih Barang —</option>'+barangs.map(b=>`<option value="${b.sku}" data-stok="${b.stok}">${b.sku} — ${b.nama} (Stok: ${b.stok} ${b.satuan})</option>`).join('');}
 
 function addBarisOutbound(){
     const idx=itemCount++;
@@ -171,7 +171,7 @@ function updateStokBadge(idx){
     const valEl=document.getElementById(`stok-val-${idx}`);
     const qtyEl=document.getElementById(`qty-${idx}`);
     const b=barangs.find(x=>x.sku===sku);
-    if(b){valEl.textContent=`${b.stok} unit`;badge.classList.remove('hidden');qtyEl.max=b.stok;}
+    if(b){valEl.textContent=`${b.stok} ${b.satuan}`;badge.classList.remove('hidden');qtyEl.max=b.stok;}
     else badge.classList.add('hidden');
 }
 

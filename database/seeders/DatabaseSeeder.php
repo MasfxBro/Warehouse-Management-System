@@ -32,8 +32,9 @@ class DatabaseSeeder extends Seeder
             SupplierSeeder::class,      // 3. Master supplier
             CustomerSeeder::class,      // 4. Master customer
             UserSeeder::class,          // 5. User dengan role
-            InboundSeeder::class,       // 6. Transaksi inbound + detail
-            OutboundSeeder::class,      // 7. Transaksi outbound + detail
+            PracticeSessionSeeder::class, // 6. Sesi praktikum aktif
+            InboundSeeder::class,       // 7. Transaksi inbound + detail
+            OutboundSeeder::class,      // 8. Transaksi outbound + detail
         ]);
 
         $this->command->info('');

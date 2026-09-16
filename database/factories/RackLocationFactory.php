@@ -20,13 +20,13 @@ class RackLocationFactory extends Factory
         // Aisle berupa huruf kapital A-F, Level berupa angka 1-5
         $aisle = $this->faker->randomElement(['A', 'B', 'C', 'D', 'E', 'F']);
         $level = $this->faker->numberBetween(1, 5);
-        $seq   = $this->faker->unique()->numberBetween(1, 99);
+        $seq = $this->faker->unique()->numberBetween(1, 99);
 
         return [
             // Format Kode_Rak: R-A1-01
-            'Kode_Rak'  => sprintf('R-%s%d-%02d', $aisle, $level, $seq),
-            'Aisle'     => $aisle,
-            'Level'     => (string) $level,
+            'Kode_Rak' => sprintf('R-%s%d-%02d', $aisle, $level, $seq),
+            'Aisle' => $aisle,
+            'Level' => (string) $level,
             'Kapasitas' => $this->faker->numberBetween(50, 500),
         ];
     }

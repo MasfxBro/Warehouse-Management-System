@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasTitleCaseAttributes;
+use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,24 +16,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Supplier extends Model
 {
-    use HasFactory, HasTitleCaseAttributes;
+    use HasFactory, HasTitleCaseAttributes, HasUuidPrimaryKey;
 
-    protected $table      = 'suppliers';
+    protected $table = 'suppliers';
+
     protected $primaryKey = 'Supplier_ID';
-    public    $incrementing = false;
-    protected $keyType    = 'string';
+
+    public $incrementing = false;
+
+    protected $keyType = 'string';
 
     protected $fillable = ['Nama', 'Kontak', 'No_Kontak', 'Email', 'Alamat'];
-
-    protected static function boot(): void
-    {
-        parent::boot();
-        static::creating(function ($model) {
-            if (empty($model->{$model->getKeyName()})) {
-                $model->{$model->getKeyName()} = (string) \Illuminate\Support\Str::orderedUuid();
-            }
-        });
-    }
 
     // =========================================================
     // AUTO-TITLE CASE MUTATORS (BACKEND ENGINE)

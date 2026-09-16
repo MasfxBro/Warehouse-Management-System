@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,16 +26,16 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'login'    => 'required|string',
+            'login' => 'required|string',
             'password' => 'required|string',
         ]);
 
         $loginInput = trim($credentials['login']);
-        $password   = $credentials['password'];
+        $password = $credentials['password'];
 
         // Cek login via Email atau Username ("admin" / "siswa")
         $email = $loginInput;
-        if (!filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
             if (strtolower($loginInput) === 'admin') {
                 $email = 'admin@wms.local';
             } elseif (strtolower($loginInput) === 'siswa') {
@@ -64,7 +63,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         if (Auth::check()) {
-            ActivityLog::record("Pengguna [" . Auth::user()->name . "] logout dari sistem.");
+            ActivityLog::record('Pengguna ['.Auth::user()->name.'] logout dari sistem.');
         }
 
         $request->session()->forget('student_identity');

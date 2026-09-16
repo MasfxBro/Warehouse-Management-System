@@ -27,7 +27,9 @@
                         <h2 class="text-xl font-bold text-slate-900 mt-1">{{ $item->Nama }}</h2>
                     </div>
                     @php $isSafe = $item->computed_stok > $item->Min_Stok; @endphp
-                    @if($isSafe)
+                    @if($item->computed_stok == 0)
+                        <span class="badge badge-danger"><i class="fa-solid fa-circle-xmark"></i> Habis</span>
+                    @elseif($isSafe)
                         <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Aman</span>
                     @else
                         <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Reorder</span>
@@ -37,10 +39,13 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     @foreach([
                         ['Kategori',        $item->Kategori,                                                                              false],
-                        ['Total Stok',      number_format($item->computed_stok) . ' pcs',                                               true],
-                        ['Min. Stok',       number_format($item->Min_Stok) . ' pcs',                                                    true],
-                        ['Harga Satuan',    'Rp ' . number_format($item->harga, 0, ',', '.'),                                            true],
-                        ['Total Nilai',     'Rp ' . number_format($item->computed_stok * $item->harga, 0, ',', '.'),                     true],
+                        ['Satuan Dasar',    $item->Satuan,                                                                                true],
+                        ['Stok Fisik',      number_format($item->physical_stock) . ' ' . $item->Satuan,                                true],
+                        ['Direservasi',     number_format($item->reserved_stock) . ' ' . $item->Satuan,                                true],
+                        ['Stok Tersedia',   number_format($item->computed_stok) . ' ' . $item->Satuan,                                  true],
+                        ['Min. Stok',       number_format($item->Min_Stok) . ' ' . $item->Satuan,                                       true],
+                        ['Harga Dasar',     'Rp ' . number_format($item->harga, 0, ',', '.') . ' / ' . $item->Satuan,                    true],
+                        ['Nilai Aset Fisik','Rp ' . number_format($item->physical_stock * $item->harga, 0, ',', '.'),                    true],
                     ] as [$label, $val, $mono])
                         <div class="p-3 rounded-lg bg-[#f7f9fb] border border-[#eceef0]">
                             <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">{{ $label }}</p>
@@ -57,7 +62,9 @@
                                     <div class="inline-flex items-center gap-1.5 bg-white border border-[#e2e8f0] rounded-lg px-2.5 py-1.5 text-xs">
                                         <span class="font-mono font-bold text-secondary">{{ $rakInfo['kode_rak'] }}</span>
                                         <span class="text-slate-400">·</span>
-                                        <span class="font-mono text-slate-600">{{ number_format($rakInfo['stok']) }} unit</span>
+                                        <span class="font-mono text-slate-600">
+                                            {{ number_format($rakInfo['fisik']) }} fisik · {{ number_format($rakInfo['reservasi']) }} reservasi · {{ number_format($rakInfo['tersedia']) }} tersedia
+                                        </span>
                                     </div>
                                 @endforeach
                             </div>
@@ -95,7 +102,10 @@
                                         <p class="font-mono font-semibold text-slate-800">{{ $hist->inboundTransaction->No_Resi ?? '-' }}</p>
                                         <p class="text-[10px] text-slate-400">{{ $hist->inboundTransaction->Tanggal->format('d M Y') }}</p>
                                     </div>
-                                    <span class="font-mono font-bold text-[#10b981]">+{{ number_format($hist->Qty) }}</span>
+                                    <div class="text-right">
+                                        <span class="block font-mono font-bold text-[#10b981]">+{{ number_format($hist->Qty) }} {{ $item->Satuan }}</span>
+                                        <span class="block text-[10px] font-mono text-slate-400">Rp {{ number_format($hist->Harga_Satuan, 0, ',', '.') }}/{{ $item->Satuan }}</span>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -168,11 +178,17 @@
                 </div>
                 <script>
                     document.addEventListener("DOMContentLoaded", function () {
-                        new QRCode(document.getElementById("qrcode"), {
-                            text: @json($qrString),
-                            width: 160, height: 160,
-                            colorDark: "#000000", colorLight: "#ffffff",
-                            correctLevel: QRCode.CorrectLevel.H
+                        QRCode.toCanvas(@json($qrString), {
+                            width: 160,
+                            margin: 1,
+                            color: { dark: "#000000", light: "#ffffff" },
+                            errorCorrectionLevel: "H"
+                        }, function (error, canvas) {
+                            if (error) {
+                                console.error("QR gagal dibuat", error);
+                                return;
+                            }
+                            document.getElementById("qrcode").replaceChildren(canvas);
                         });
                     });
                 </script>

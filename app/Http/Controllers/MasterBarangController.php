@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MasterBarang;
 use App\Models\InboundDetail;
+use App\Models\MasterBarang;
 use App\Models\OutboundDetail;
+use App\Models\RackLocation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
@@ -17,24 +18,26 @@ class MasterBarangController extends Controller
      */
     public function index(Request $request)
     {
-        $search   = $request->query('search');
+        $search = $request->query('search');
         $kategori = $request->query('kategori');
 
         $query = MasterBarang::with(['rackLocation'])
             ->withSum('inboundDetails as inbound_qty', 'Qty')
-            ->withSum('outboundDetails as outbound_qty', 'Qty');
+            ->withSum('outboundDetails as outbound_qty', 'Qty')
+            ->withSum('completedOutboundDetails as completed_outbound_qty', 'Qty')
+            ->withSum('reservedOutboundDetails as reserved_qty', 'Qty');
 
         if ($search) {
             $searchLower = strtolower($search);
             $query->where(function ($q) use ($searchLower) {
-                $q->whereRaw("LOWER(\"SKU\") LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(\"Nama\") LIKE ?", ['%' . $searchLower . '%'])
-                  ->orWhereRaw("LOWER(\"Kategori\") LIKE ?", ['%' . $searchLower . '%']);
+                $q->whereRaw('LOWER("SKU") LIKE ?', ['%'.$searchLower.'%'])
+                    ->orWhereRaw('LOWER("Nama") LIKE ?', ['%'.$searchLower.'%'])
+                    ->orWhereRaw('LOWER("Kategori") LIKE ?', ['%'.$searchLower.'%']);
             });
         }
 
         if ($kategori) {
-            $query->whereRaw("LOWER(\"Kategori\") = ?", [strtolower($kategori)]);
+            $query->whereRaw('LOWER("Kategori") = ?', [strtolower($kategori)]);
         }
 
         $items = $query->paginate(15)->withQueryString();
@@ -51,10 +54,14 @@ class MasterBarangController extends Controller
         $item = MasterBarang::with(['rackLocation'])
             ->withSum('inboundDetails as inbound_qty', 'Qty')
             ->withSum('outboundDetails as outbound_qty', 'Qty')
+            ->withSum('completedOutboundDetails as completed_outbound_qty', 'Qty')
+            ->withSum('reservedOutboundDetails as reserved_qty', 'Qty')
             ->where('SKU', $sku)
             ->firstOrFail();
 
-        $item->computed_stok = max(0, (int)($item->inbound_qty ?? 0) - (int)($item->outbound_qty ?? 0));
+        $item->computed_stok = max(0, (int) ($item->inbound_qty ?? 0) - (int) ($item->outbound_qty ?? 0));
+        $item->physical_stock = max(0, (int) ($item->inbound_qty ?? 0) - (int) ($item->completed_outbound_qty ?? 0));
+        $item->reserved_stock = (int) ($item->reserved_qty ?? 0);
 
         // Hitung distribusi stok per rak (dari InboundDetail - OutboundDetail per Rack_ID)
         $inboundPerRak = InboundDetail::where('SKU', $sku)
@@ -64,35 +71,56 @@ class MasterBarangController extends Controller
             ->get()
             ->keyBy('Rack_ID');
 
-        $outboundPerRak = OutboundDetail::where('SKU', $sku)
+        $completedOutboundPerRak = OutboundDetail::where('SKU', $sku)
+            ->whereHas('outboundTransaction', fn ($query) => $query
+                ->where('transaction_status', 'active')
+                ->where('picking_status', 'complete'))
+            ->selectRaw('"Rack_ID", SUM("Qty") as out_qty')
+            ->groupBy('Rack_ID')
+            ->get()
+            ->keyBy('Rack_ID');
+
+        $reservedOutboundPerRak = OutboundDetail::where('SKU', $sku)
+            ->whereHas('outboundTransaction', fn ($query) => $query
+                ->where('transaction_status', 'active')
+                ->where('picking_status', 'not_complete'))
             ->selectRaw('"Rack_ID", SUM("Qty") as out_qty')
             ->groupBy('Rack_ID')
             ->get()
             ->keyBy('Rack_ID');
 
         // Gabungkan dan hitung net stok per rak, filter hanya yang > 0
-        $allRakIds = $inboundPerRak->keys()->merge($outboundPerRak->keys())->unique();
-        $stokPerRak = $allRakIds->map(function($rackId) use ($inboundPerRak, $outboundPerRak) {
-            $inQty  = (int)($inboundPerRak->get($rackId)?->in_qty ?? 0);
-            $outQty = (int)($outboundPerRak->get($rackId)?->out_qty ?? 0);
-            $net    = max(0, $inQty - $outQty);
-            if ($net <= 0) return null;
+        $allRakIds = $inboundPerRak->keys()
+            ->merge($completedOutboundPerRak->keys())
+            ->merge($reservedOutboundPerRak->keys())
+            ->unique();
+        $stokPerRak = $allRakIds->map(function ($rackId) use ($inboundPerRak, $completedOutboundPerRak, $reservedOutboundPerRak) {
+            $inQty = (int) ($inboundPerRak->get($rackId)?->in_qty ?? 0);
+            $completedQty = (int) ($completedOutboundPerRak->get($rackId)?->out_qty ?? 0);
+            $reservedQty = (int) ($reservedOutboundPerRak->get($rackId)?->out_qty ?? 0);
+            $physical = max(0, $inQty - $completedQty);
+            $available = max(0, $physical - $reservedQty);
+            if ($physical <= 0) {
+                return null;
+            }
 
             $rak = $inboundPerRak->get($rackId)?->rackLocation
-                ?? \App\Models\RackLocation::find($rackId);
+                ?? RackLocation::find($rackId);
 
             return [
-                'rack_id'  => $rackId,
+                'rack_id' => $rackId,
                 'kode_rak' => $rak ? $rak->Kode_Rak : '?',
-                'aisle'    => $rak ? $rak->Aisle : '-',
-                'level'    => $rak ? $rak->Level : '-',
-                'stok'     => $net,
+                'aisle' => $rak ? $rak->Aisle : '-',
+                'level' => $rak ? $rak->Level : '-',
+                'fisik' => $physical,
+                'reservasi' => $reservedQty,
+                'tersedia' => $available,
             ];
         })->filter()->values();
 
         // rackName: jika di lebih dari 1 rak, tampilkan "Beberapa Rak"
         if ($stokPerRak->count() > 1) {
-            $rackName = 'Beberapa Rak (' . $stokPerRak->count() . ' lokasi)';
+            $rackName = 'Beberapa Rak ('.$stokPerRak->count().' lokasi)';
         } elseif ($stokPerRak->count() === 1) {
             $r = $stokPerRak->first();
             $rackName = "{$r['kode_rak']} (Lorong {$r['aisle']} - Level {$r['level']})";
@@ -104,7 +132,7 @@ class MasterBarangController extends Controller
 
         $qrString = "{$item->SKU} - {$item->Nama} - {$rackName}";
 
-        $inboundHistory  = InboundDetail::with('inboundTransaction.supplier')
+        $inboundHistory = InboundDetail::with('inboundTransaction.supplier')
             ->where('SKU', $sku)
             ->orderByDesc('created_at')
             ->take(2)
@@ -142,12 +170,12 @@ class MasterBarangController extends Controller
             size: 200,
             margin: 10,
         );
-        $writer  = new PngWriter();
-        $result  = $writer->write($qrCode);
+        $writer = new PngWriter;
+        $result = $writer->write($qrCode);
         $qrBase64 = base64_encode($result->getString());
 
         $pdf = Pdf::loadView('master.barang.label-pdf', [
-            'item'     => $item,
+            'item' => $item,
             'rackName' => $rackName,
             'qrString' => $qrString,
             'qrBase64' => $qrBase64,

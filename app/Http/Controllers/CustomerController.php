@@ -20,9 +20,9 @@ class CustomerController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('Nama', 'like', "%{$search}%")
-                  ->orWhere('No_Kontak', 'like', "%{$search}%")
-                  ->orWhere('Email', 'like', "%{$search}%")
-                  ->orWhere('Alamat', 'like', "%{$search}%");
+                    ->orWhere('No_Kontak', 'like', "%{$search}%")
+                    ->orWhere('Email', 'like', "%{$search}%")
+                    ->orWhere('Alamat', 'like', "%{$search}%");
             });
         }
 
@@ -39,22 +39,22 @@ class CustomerController extends Controller
         $customer = Customer::findOrFail($id);
 
         $request->validate([
-            'Nama'      => ['required', 'string', 'max:255'],
+            'Nama' => ['required', 'string', 'max:255'],
             'No_Kontak' => ['nullable', 'string', 'max:20', 'regex:/^\d+$/'],
-            'Email'     => ['nullable', 'email', 'max:255'],
-            'Alamat'    => ['nullable', 'string', 'max:500'],
+            'Email' => ['nullable', 'email', 'max:255'],
+            'Alamat' => ['nullable', 'string', 'max:500'],
         ], [
-            'Nama.required'    => 'Nama customer wajib diisi.',
-            'No_Kontak.regex'  => 'No. Kontak hanya boleh berisi angka.',
-            'Email.email'      => 'Email harus mengandung karakter @.',
+            'Nama.required' => 'Nama customer wajib diisi.',
+            'No_Kontak.regex' => 'No. Kontak hanya boleh berisi angka.',
+            'Email.email' => 'Email harus mengandung karakter @.',
         ]);
 
         $customer->update([
-            'Nama'      => $request->Nama,
+            'Nama' => $request->Nama,
             'No_Kontak' => $request->No_Kontak,
-            'Kontak'    => $request->No_Kontak,
-            'Email'     => $request->Email,
-            'Alamat'    => $request->Alamat,
+            'Kontak' => $request->No_Kontak,
+            'Email' => $request->Email,
+            'Alamat' => $request->Alamat,
         ]);
 
         ActivityLog::record("Admin memperbarui data Customer: {$customer->Nama}.");

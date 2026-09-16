@@ -215,8 +215,13 @@
                         </div>
 
                         <div class="info-row">
+                            <div class="info-key">Satuan</div>
+                            <div class="info-val mono">{{ $item->Satuan }}</div>
+                        </div>
+
+                        <div class="info-row">
                             <div class="info-key">Min. Stok</div>
-                            <div class="info-val">{{ number_format($item->Min_Stok) }} unit</div>
+                            <div class="info-val">{{ number_format($item->Min_Stok) }} {{ $item->Satuan }}</div>
                         </div>
 
                     </td>

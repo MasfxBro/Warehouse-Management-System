@@ -16,11 +16,21 @@ class CheckStudentIdentity
     {
         $user = Auth::user();
 
-        // Jika user logged in dan role nya adalah 'user' (Siswa)
-        if ($user && $user->isUser()) {
-            if (!session()->has('student_identity')) {
-                // Tandai request bahwa modal identitas wajib aktif
-                view()->share('require_student_identity_modal', true);
+        if ($user && $user->isUser() && ! session()->has('student_identity')) {
+            // Request baca tetap diizinkan agar modal identitas dapat tampil.
+            view()->share('require_student_identity_modal', true);
+
+            // Tolak perubahan data sampai identitas siswa dicatat. Pengecualian
+            // hanya untuk mengisi identitas, reset sesi, dan logout.
+            $allowedRoutes = [
+                'student-identity.store',
+                'student-identity.reset',
+                'logout',
+            ];
+
+            if (! $request->isMethodSafe() && ! $request->routeIs($allowedRoutes)) {
+                return redirect()->route('dashboard')
+                    ->with('error', 'Isi identitas siswa terlebih dahulu sebelum menjalankan transaksi.');
             }
         }
 

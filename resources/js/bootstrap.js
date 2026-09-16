@@ -1,4 +1,5 @@
-import axios from 'axios';
-window.axios = axios;
+import Chart from 'chart.js/auto';
+import QRCode from 'qrcode';
 
-window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+window.Chart = Chart;
+window.QRCode = QRCode;

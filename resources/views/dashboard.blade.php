@@ -52,9 +52,11 @@
         <!-- Total Stok -->
         <div class="stat-card">
             <div>
-                <p class="stat-card-label">Total Stok</p>
+                <p class="stat-card-label">Total Kuantitas</p>
                 <p class="stat-card-value">{{ number_format($totalStok) }}</p>
-                <p class="stat-card-sub text-[#10b981] font-medium">unit di gudang</p>
+                <p class="stat-card-sub text-[#10b981] font-medium">
+                    stok fisik · {{ number_format($totalReserved) }} direservasi
+                </p>
             </div>
             <div class="stat-card-icon bg-emerald-50 text-[#10b981]">
                 <i class="fa-solid fa-cubes text-base"></i>

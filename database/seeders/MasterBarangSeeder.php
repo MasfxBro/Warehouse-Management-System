@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\MasterBarang;
 use App\Models\RackLocation;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Seeder: MasterBarangSeeder
@@ -15,6 +16,24 @@ use Illuminate\Database\Seeder;
  */
 class MasterBarangSeeder extends Seeder
 {
+    private const DEMO_UNITS_AND_PRICES = [
+        'ELK-00001' => ['Unit', 8500000], 'ELK-00002' => ['Unit', 2200000],
+        'ELK-00003' => ['Unit', 550000], 'ELK-00004' => ['Unit', 180000],
+        'ELK-00005' => ['Unit', 900000], 'FRN-00001' => ['Unit', 1250000],
+        'FRN-00002' => ['Unit', 1100000], 'FRN-00003' => ['Unit', 1750000],
+        'FRN-00004' => ['Unit', 1450000], 'FRN-00005' => ['Unit', 2300000],
+        'PER-00001' => ['Unit', 6500000], 'PER-00002' => ['Unit', 4800000],
+        'PER-00003' => ['Unit', 2100000], 'PER-00004' => ['Unit', 1850000],
+        'PER-00005' => ['Unit', 425000], 'KNS-00001' => ['Pack', 48000],
+        'KNS-00002' => ['Roll', 135000], 'KNS-00003' => ['Lusin', 165000],
+        'KNS-00004' => ['Roll', 28000], 'KNS-00005' => ['Pack', 72000],
+        'BBK-00001' => ['Kaleng', 120000], 'BBK-00002' => ['Pail', 175000],
+        'BBK-00003' => ['KG', 95000], 'BBK-00004' => ['Lembar', 85000],
+        'BBK-00005' => ['Set', 65000], 'SPR-00001' => ['PCS', 45000],
+        'SPR-00002' => ['PCS', 78000], 'SPR-00003' => ['PCS', 125000],
+        'ATS-00001' => ['Box', 145000], 'ATS-00002' => ['Rim', 68000],
+    ];
+
     /**
      * Data barang statis yang representatif untuk WMS.
      * Format: [SKU, Nama, Kategori, Min_Stok, Barcode_ID]
@@ -58,15 +77,25 @@ class MasterBarangSeeder extends Seeder
         $rackIds = RackLocation::pluck('Rack_ID')->toArray();
 
         foreach ($this->items as $index => $item) {
+            [$unit, $price] = self::DEMO_UNITS_AND_PRICES[$item[0]];
+
             MasterBarang::create([
-                'SKU'        => $item[0],
-                'Nama'       => $item[1],
-                'Kategori'   => $item[2],
-                'Min_Stok'   => $item[3],
+                'SKU' => $item[0],
+                'Nama' => $item[1],
+                'Kategori' => $item[2],
+                'Satuan' => $unit,
+                'Harga_Dasar' => $price,
+                'Min_Stok' => $item[3],
                 'Barcode_ID' => $item[4],
                 // Distribusikan barang ke rak secara round-robin
-                'Rack_ID'    => $rackIds[$index % count($rackIds)],
+                'Rack_ID' => $rackIds[$index % count($rackIds)],
             ]);
+
+            [$prefix, $number] = explode('-', $item[0], 2);
+            DB::table('sku_counters')->updateOrInsert(
+                ['Prefix' => $prefix],
+                ['Last_Number' => (int) $number, 'created_at' => now(), 'updated_at' => now()]
+            );
         }
 
         $this->command->info('  MasterBarangSeeder: 30 barang berhasil dibuat.');

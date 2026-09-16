@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\MasterBarang;
-use App\Models\RackLocation;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,7 +22,7 @@ class MasterDataTest extends TestCase
     public function test_supplier_and_customer_title_case_mutator(): void
     {
         $supplier = Supplier::create([
-            'Nama'   => 'pt. indo jaya sejahtera',
+            'Nama' => 'pt. indo jaya sejahtera',
             'Alamat' => 'jl. pahlawan raya no 12',
         ]);
 
@@ -31,7 +30,7 @@ class MasterDataTest extends TestCase
         $this->assertEquals('Jl. Pahlawan Raya No 12', $supplier->Alamat);
 
         $customer = Customer::create([
-            'Nama'   => 'toko makmur abadi',
+            'Nama' => 'toko makmur abadi',
             'Alamat' => 'jl. gajah mada no 45',
         ]);
 
@@ -46,9 +45,9 @@ class MasterDataTest extends TestCase
 
         // Admin create rack location
         $responseAdmin = $this->actingAs($admin)->post(route('master.rak.store'), [
-            'Kode_Rak'  => 'R-TEST-01',
-            'Aisle'     => 'T1',
-            'Level'     => '01',
+            'Kode_Rak' => 'R-TEST-01',
+            'Aisle' => 'T1',
+            'Level' => '01',
             'Kapasitas' => 100,
         ]);
         $responseAdmin->assertRedirect(route('master.rak.index'));
@@ -56,9 +55,9 @@ class MasterDataTest extends TestCase
 
         // Siswa try create rack location (should be blocked by role middleware)
         $responseSiswa = $this->actingAs($siswa)->post(route('master.rak.store'), [
-            'Kode_Rak'  => 'R-SISWA-01',
-            'Aisle'     => 'S1',
-            'Level'     => '01',
+            'Kode_Rak' => 'R-SISWA-01',
+            'Aisle' => 'S1',
+            'Level' => '01',
             'Kapasitas' => 100,
         ]);
         $responseSiswa->assertRedirect(route('dashboard'));
@@ -68,7 +67,7 @@ class MasterDataTest extends TestCase
     public function test_master_barang_show_detail_page(): void
     {
         $admin = User::where('email', 'admin@wms.local')->first();
-        $item  = MasterBarang::first();
+        $item = MasterBarang::first();
 
         $response = $this->actingAs($admin)->get(route('master.barang.show', $item->SKU));
         $response->assertStatus(200);

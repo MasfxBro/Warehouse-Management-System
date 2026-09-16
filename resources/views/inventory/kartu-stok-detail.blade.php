@@ -20,7 +20,7 @@
                         ['SKU',         $barang->SKU,                    true,  'text-[#0058be]'],
                         ['Kategori',    $barang->Kategori,               false, 'text-slate-800'],
                         ['Lokasi Rak',  $barang->rackLocation->Kode_Rak ?? '-', true, 'text-slate-800'],
-                        ['Min. Stok',   number_format($barang->Min_Stok) . ' unit', true, 'text-slate-700'],
+                        ['Min. Stok',   number_format($barang->Min_Stok) . ' ' . $barang->Satuan, true, 'text-slate-700'],
                     ] as [$lbl, $val, $mono, $color])
                         <div>
                             <p class="text-[10px] text-slate-400 mb-0.5">{{ $lbl }}</p>
@@ -34,7 +34,7 @@
                 <p class="text-4xl font-black font-mono {{ $barang->stok > $barang->Min_Stok ? 'text-[#10b981]' : 'text-[#93000a]' }}">
                     {{ number_format($barang->stok) }}
                 </p>
-                <p class="text-xs text-slate-400">unit</p>
+                <p class="text-xs text-slate-400">{{ $barang->Satuan }}</p>
                 @if($barang->stok <= $barang->Min_Stok)
                     <span class="badge badge-warning mt-1"><i class="fa-solid fa-triangle-exclamation"></i> Reorder Point</span>
                 @endif
