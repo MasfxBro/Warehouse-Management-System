@@ -433,3 +433,9 @@ body {
     font-size: 0.875rem;
     flex-shrink: 0;
 }
+.sidebar-brand-logo {
+    width: 2.25rem;
+    height: 2.25rem;
+    object-fit: contain;
+    flex-shrink: 0;
+}

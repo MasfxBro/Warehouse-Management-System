@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - WMS Prototipe 2</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/wms-logo-64.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="h-full bg-[#f7f9fb] flex items-center justify-center p-4">
@@ -12,9 +13,9 @@
 
     <!-- Logo -->
     <div class="flex items-center justify-center gap-3 mb-8">
-        <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shadow-sm">
-            <i class="fa-solid fa-warehouse text-white text-base"></i>
-        </div>
+        <img src="{{ asset('images/wms-logo.png') }}"
+             alt="Logo Manajemen Logistik SMK Negeri 20 Jakarta"
+             class="w-12 h-12 object-contain shrink-0">
         <div>
             <p class="text-[15px] font-bold text-slate-900 leading-tight">WMS Prototipe 2</p>
             <p class="text-[11px] text-slate-400">Warehouse Management System</p>

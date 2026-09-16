@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'WMS Prototipe 2') - Warehouse Management System</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/wms-logo-64.png') }}">
 
     <!-- Disable browser speculative prefetching (Chrome, Edge) -->
     <meta http-equiv="x-dns-prefetch-control" content="off">
@@ -22,9 +23,9 @@
 
         <!-- Logo / Brand -->
         <div class="h-14 flex items-center px-4 border-b border-[#e2e8f0] gap-3">
-            <div class="sidebar-logo-box">
-                <i class="fa-solid fa-warehouse text-xs"></i>
-            </div>
+            <img src="{{ asset('images/wms-logo.png') }}"
+                 alt="Logo Manajemen Logistik SMK Negeri 20 Jakarta"
+                 class="sidebar-brand-logo">
             <div class="min-w-0">
                 <div class="text-[13px] font-bold text-slate-900 leading-tight tracking-tight">WMS Prototipe 2</div>
                 <div class="text-[10px] text-slate-400 font-medium">Warehouse Management</div>
