@@ -52,7 +52,7 @@ class DashboardController extends Controller
             ->values();
 
         $lowStockItems = new \Illuminate\Pagination\LengthAwarePaginator(
-            $allLowStock->forPage($lowStockPage, $lowStockPerPage),
+            $allLowStock->forPage($.lowStockPage, $lowStockPerPage),
             $allLowStock->count(),
             $lowStockPerPage,
             $lowStockPage,
