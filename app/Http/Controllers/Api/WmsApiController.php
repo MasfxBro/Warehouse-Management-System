@@ -447,7 +447,8 @@ class WmsApiController extends Controller
                     $prefix = str_pad(strtoupper(substr(preg_replace('/[aeiou\s]/i', '', $item['Kategori_baru']), 0, 3)), 3, 'X');
                     $sku = $skuNumbers->next($prefix); $rackId = $item['Rack_ID_baru']; $price = (int) $item['Harga_Satuan'];
                     MasterBarang::create(['SKU' => $sku, 'Nama' => trim($item['Nama_baru']), 'Kategori' => trim($item['Kategori_baru']),
-                        'Satuan' => $unit, 'Harga_Dasar' => $price, 'Rack_ID' => $rackId, 'Min_Stok' => (int) $item['Min_Stok_baru']]);
+                        'Satuan' => $unit, 'Harga_Dasar' => $price, 'Rack_ID' => $rackId, 'Min_Stok' => (int) $item['Min_Stok_baru'],
+                        'Created_From_Inbound_ID' => $row->Inbound_ID]);
                 }
                 InboundDetail::create(['Inbound_ID' => $row->Inbound_ID, 'SKU' => $sku, 'Rack_ID' => $rackId, 'Qty' => (int) $item['Qty'],
                     'Harga_Satuan' => $price, 'No_Resi_Supplier' => $item['tanpa_resi'] ? null : trim($item['No_Resi_Supplier'])]);
@@ -552,7 +553,7 @@ class WmsApiController extends Controller
             'priority' => $row->priority, 'priority_label' => $row->priorityLabel(), 'is_complete' => $row->isComplete(),
             'transaction_status' => $row->transaction_status,
             'details' => $row->allOutboundDetails->map(fn ($d) => [
-                'sku' => $d->SKU, 'nama_barang' => $d->masterBarang?->Nama ?? '-', 'rack' => $d->rackLocation?->Kode_Rak ?? '-',
+                'detail_id' => $d->Detail_ID, 'sku' => $d->SKU, 'nama_barang' => $d->masterBarang?->Nama ?? '-', 'rack' => $d->rackLocation?->Kode_Rak ?? '-',
                 'qty' => $d->Qty, 'satuan' => $d->masterBarang?->Satuan ?? 'PCS',
             ]),
         ]]);
@@ -568,11 +569,22 @@ class WmsApiController extends Controller
         ]]);
     }
 
-    public function completePicking(string $id): JsonResponse
+    public function completePicking(Request $request, string $id): JsonResponse
     {
-        $row = DB::transaction(function () use ($id) {
-            $outbound = OutboundTransaction::lockForUpdate()->findOrFail($id);
+        $data = $request->validate([
+            'confirmed_detail_ids' => ['required', 'array', 'min:1'],
+            'confirmed_detail_ids.*' => ['required', 'uuid', 'distinct'],
+        ]);
+        $row = DB::transaction(function () use ($data, $id) {
+            $outbound = OutboundTransaction::with('outboundDetails')->lockForUpdate()->findOrFail($id);
             abort_if($outbound->isCancelled(), 422, 'Transaksi sudah dibatalkan.');
+            $expected = $outbound->outboundDetails->pluck('Detail_ID')->map(fn ($value) => (string) $value)->sort()->values();
+            $confirmed = collect($data['confirmed_detail_ids'])->map(fn ($value) => (string) $value)->sort()->values();
+            abort_unless(
+                $expected->isNotEmpty() && $expected->all() === $confirmed->all(),
+                422,
+                'Centang seluruh barang pada picking list sebelum menyelesaikan picking.'
+            );
             if (! $outbound->isComplete()) $outbound->update(['picking_status' => 'complete']);
             return $outbound;
         });
@@ -595,8 +607,17 @@ class WmsApiController extends Controller
                 $received = InboundDetail::where('SKU', $sku)->where('Rack_ID', $rackId)->sum('Qty');
                 abort_if($received - $used - $qty < 0, 422, "Inbound tidak dapat dibatalkan karena stok {$sku} sudah digunakan.");
             }
+            $affectedSkus = $inbound->inboundDetails->pluck('SKU')->unique()->values();
             $inbound->inboundDetails->each->delete();
             $inbound->update(['transaction_status' => 'cancelled', 'Cancelled_At' => now(), 'Cancelled_By' => $request->user()->id, 'Cancellation_Reason' => trim($data['reason'])]);
+            MasterBarang::whereIn('SKU', $affectedSkus)
+                ->where('Created_From_Inbound_ID', $inbound->Inbound_ID)
+                ->whereDoesntHave('inboundDetails')
+                ->whereDoesntHave('outboundDetails')
+                ->whereDoesntHave('stockOpnames')
+                ->get()
+                ->each
+                ->delete();
             return $inbound;
         });
         WarehouseCache::clearDashboard(); ActivityLog::record("Transaksi Inbound [{$row->No_Receiving}] dibatalkan melalui aplikasi Flutter.");

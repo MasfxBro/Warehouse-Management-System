@@ -39,7 +39,7 @@ class InboundDetail extends Model
 
     public function masterBarang(): BelongsTo
     {
-        return $this->belongsTo(MasterBarang::class, 'SKU', 'SKU');
+        return $this->belongsTo(MasterBarang::class, 'SKU', 'SKU')->withTrashed();
     }
 
     public function rackLocation(): BelongsTo

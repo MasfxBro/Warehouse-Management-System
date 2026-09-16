@@ -143,4 +143,64 @@ class ApiTest extends TestCase
         $this->withToken($token)->getJson('/api/v1/outbound?status=complete&search=tidak-akan-ditemukan')
             ->assertOk()->assertJsonCount(0, 'data');
     }
+
+    public function test_flutter_cancels_new_item_without_removing_existing_master_item(): void
+    {
+        $token = $this->postJson('/api/v1/login', ['login' => 'admin', 'password' => 'password'])->json('token');
+        $supplier = Supplier::firstOrFail();
+        $rack = RackLocation::orderByDesc('Kapasitas')->firstOrFail();
+
+        $newInboundId = $this->withToken($token)->postJson('/api/v1/inbound', [
+            'Tanggal' => today()->format('Y-m-d'),
+            'Supplier_ID' => $supplier->Supplier_ID,
+            'items' => [[
+                'jenis' => 'baru', 'Nama_baru' => 'Barang Baru Pembatalan API',
+                'Kategori_baru' => 'Pengujian', 'Satuan_baru' => 'PCS',
+                'Rack_ID_baru' => $rack->Rack_ID, 'Qty' => 1,
+                'Min_Stok_baru' => 0, 'Harga_Satuan' => 12500, 'tanpa_resi' => true,
+            ]],
+        ])->assertCreated()->json('data.inbound_id');
+
+        $newItem = MasterBarang::where('Created_From_Inbound_ID', $newInboundId)->firstOrFail();
+        $this->withToken($token)->postJson('/api/v1/inbound/'.$newInboundId.'/cancel', [
+            'reason' => 'Barang baru salah dicatat saat pengujian.',
+        ])->assertOk();
+        $this->assertSoftDeleted('master_barang', ['SKU' => $newItem->SKU]);
+        $this->assertNull(MasterBarang::find($newItem->SKU));
+
+        $existing = MasterBarang::firstOrFail();
+        $stockBefore = $existing->stok;
+        $existingInboundId = $this->withToken($token)->postJson('/api/v1/inbound', [
+            'Tanggal' => today()->format('Y-m-d'),
+            'Supplier_ID' => $supplier->Supplier_ID,
+            'items' => [[
+                'jenis' => 'lama', 'SKU_lama' => $existing->SKU,
+                'Rack_ID_lama' => $rack->Rack_ID, 'Qty' => 1, 'tanpa_resi' => true,
+            ]],
+        ])->assertCreated()->json('data.inbound_id');
+
+        $this->withToken($token)->postJson('/api/v1/inbound/'.$existingInboundId.'/cancel', [
+            'reason' => 'Penerimaan barang lama dibatalkan untuk pengujian.',
+        ])->assertOk();
+        $this->assertNotNull($existing->fresh());
+        $this->assertSame($stockBefore, $existing->fresh()->stok);
+    }
+
+    public function test_flutter_requires_every_picking_detail_to_be_confirmed(): void
+    {
+        $token = $this->postJson('/api/v1/login', ['login' => 'admin', 'password' => 'password'])->json('token');
+        $outbound = OutboundTransaction::where('transaction_status', 'active')
+            ->where('picking_status', 'not_complete')
+            ->firstOrFail();
+        $detailIds = $outbound->outboundDetails()->pluck('Detail_ID')->map(fn ($id) => (string) $id)->values()->all();
+
+        $this->withToken($token)->postJson('/api/v1/outbound/'.$outbound->Outbound_ID.'/picking-complete', [
+            'confirmed_detail_ids' => [],
+        ])->assertUnprocessable();
+
+        $this->withToken($token)->postJson('/api/v1/outbound/'.$outbound->Outbound_ID.'/picking-complete', [
+            'confirmed_detail_ids' => $detailIds,
+        ])->assertOk()->assertJsonPath('success', true);
+        $this->assertSame('complete', $outbound->fresh()->picking_status);
+    }
 }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Model: MasterBarang
@@ -26,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class MasterBarang extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * Nama tabel sesuai ERD.
@@ -60,6 +61,7 @@ class MasterBarang extends Model
         'Min_Stok',
         'Barcode_ID',
         'Rack_ID',
+        'Created_From_Inbound_ID',
     ];
 
     /**
@@ -150,6 +152,11 @@ class MasterBarang extends Model
     public function outboundDetails(): HasMany
     {
         return $this->hasMany(OutboundDetail::class, 'SKU', 'SKU');
+    }
+
+    public function stockOpnames(): HasMany
+    {
+        return $this->hasMany(StockOpname::class, 'SKU', 'SKU');
     }
 
     public function completedOutboundDetails(): HasMany

@@ -272,6 +272,7 @@ class InboundController extends Controller
                         'Harga_Dasar' => $unitPrice,
                         'Rack_ID' => $rackId,
                         'Min_Stok' => (int) ($item['Min_Stok_baru'] ?? 0),
+                        'Created_From_Inbound_ID' => $inbound->Inbound_ID,
                     ]);
                 }
 
@@ -371,6 +372,7 @@ class InboundController extends Controller
                 }
             }
 
+            $affectedSkus = $inbound->inboundDetails->pluck('SKU')->unique()->values();
             $inbound->inboundDetails->each->delete();
             $inbound->update([
                 'transaction_status' => 'cancelled',
@@ -378,6 +380,14 @@ class InboundController extends Controller
                 'Cancelled_By' => Auth::id(),
                 'Cancellation_Reason' => trim($request->reason),
             ]);
+            MasterBarang::whereIn('SKU', $affectedSkus)
+                ->where('Created_From_Inbound_ID', $inbound->Inbound_ID)
+                ->whereDoesntHave('inboundDetails')
+                ->whereDoesntHave('outboundDetails')
+                ->whereDoesntHave('stockOpnames')
+                ->get()
+                ->each
+                ->delete();
             DB::commit();
 
             WarehouseCache::clearDashboard();
