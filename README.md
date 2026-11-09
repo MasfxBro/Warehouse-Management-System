@@ -1,66 +1,108 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Warehouse Management System Sekolah
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+WMS berbasis Laravel untuk kegiatan belajar mengajar Jurusan Manajemen Logistik. Aplikasi mensimulasikan operasional gudang dari penerimaan, penyimpanan, perpindahan rak, picking, pengiriman, stock opname, sampai pelaporan.
 
-## About Laravel
+## Modul
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Autentikasi Guru/Admin dan akun bersama Siswa/Operator.
+- Identitas siswa per sesi untuk jejak audit praktikum.
+- Sesi praktikum per kelas/periode yang dibuka dan ditutup Guru/Admin.
+- Master barang, lokasi rak, supplier, dan customer.
+- Inbound multi-item, barang baru/lama, satuan dasar, harga pembelian per penerimaan, kapasitas rak, dan nomor receiving otomatis.
+- Outbound multi-item dengan alokasi stok sesuai saldo aktual setiap rak.
+- Picking list, prioritas otomatis, dan surat jalan PDF.
+- Pembatalan inbound/outbound yang aman tanpa menghapus nomor dokumen dan jejak audit.
+- Kartu stok, distribusi stok per rak, stock opname kondisi fisik, dan activity log.
+- Export laporan inventori, inbound, dan outbound ke Excel.
+- Label barang dengan QR code.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Aturan bisnis penting
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Stok tidak disimpan sebagai angka manual. Sistem menghitung tiga saldo: **fisik** = inbound − outbound selesai, **reservasi** = outbound yang belum selesai picking, dan **tersedia** = fisik − reservasi.
+- Satuan dasar melekat pada SKU. Harga dasar ditetapkan saat inbound pertama dan dikunci untuk seluruh penerimaan berikutnya dari SKU yang sama.
+- Harga disimpan sebagai snapshot pada detail inbound dan subtotal dihitung dari Qty dikali harga dasar.
+- Satuan dapat dipilih dari katalog, diketik langsung, atau ditambahkan melalui modal pada form inbound barang baru; penulisannya dinormalisasi untuk mencegah duplikasi.
+- Total stok sebuah SKU harus selalu sama dengan jumlah saldo SKU tersebut pada seluruh rak.
+- Outbound dialokasikan dari rak yang benar-benar memiliki saldo; satu permintaan dapat dibagi ke beberapa rak.
+- Nomor RSI dan SJ berurutan per jenis dokumen dan tanggal melalui counter database yang aman untuk penggunaan bersamaan.
+- Inbound hanya dapat dibatalkan jika stoknya belum dipakai; pembatalan outbound melepas reservasi atau mengembalikan saldo transaksi selesai.
+- Sesi praktikum tidak dapat ditutup selama masih ada picking yang tertunda.
+- Stock opname hanya mencatat kondisi fisik dan tidak mengubah jumlah stok.
+- Surat jalan hanya dapat dibuat setelah picking selesai.
+- Siswa harus mengisi nama, kelas, dan NIS sebelum dapat mengubah data.
 
-## Learning Laravel
+## Kebutuhan sistem
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP 8.2 atau lebih baru beserta extension yang dibutuhkan Laravel, GD, dan Zip.
+- PostgreSQL untuk development, staging, dan production.
+- Composer 2.
+- Node.js dan npm.
+- Web server yang mengarah ke direktori `public`, bukan root repository.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Instalasi development
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+composer install
+npm install
+copy .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+php artisan storage:link
+npm run build
+php artisan serve
+```
 
-## Laravel Sponsors
+Sesuaikan koneksi PostgreSQL di `.env`. Jangan pernah menjalankan `migrate:fresh` pada database yang berisi data sekolah.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Untuk mengulang dataset latihan lokal secara deterministik, gunakan perintah khusus berikut. Perintah ini ditolak di environment selain `local`/`testing` dan tetap memerlukan flag eksplisit:
 
-### Premium Partners
+```bash
+php artisan wms:demo-reset --force
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+## Verifikasi
 
-## Contributing
+```bash
+php artisan test
+npm run build
+composer validate --no-check-publish
+php artisan migrate:status
+php artisan wms:audit
+php vendor/bin/pint --test app database routes tests bootstrap/app.php bootstrap/providers.php config
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Test menggunakan SQLite in-memory melalui `phpunit.xml`; database PostgreSQL development tidak dihapus oleh test.
+Test juga memiliki pengaman fail-fast dan akan dibatalkan jika aplikasi tidak benar-benar memakai SQLite `:memory:`. Jalankan `php artisan optimize:clear` sebelum test jika config pernah dicache.
 
-## Code of Conduct
+## Deployment production
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. Siapkan domain HTTPS, PostgreSQL, backup otomatis, dan user database dengan hak minimum.
+2. Gunakan `APP_ENV=production`, `APP_DEBUG=false`, `APP_TIMEZONE=Asia/Jakarta`, URL HTTPS, serta password unik.
+3. Jalankan `composer install --no-dev --optimize-autoloader` dan `npm ci && npm run build`.
+4. Jalankan `php artisan migrate --force`—jangan gunakan `migrate:fresh`.
+5. Jalankan `php artisan storage:link`, lalu pastikan `storage` dan `bootstrap/cache` dapat ditulis web server.
+6. Jalankan `php artisan optimize` dan siapkan scheduler/queue worker jika fitur antrean ditambahkan.
+7. Uji login, inbound, outbound, picking, PDF, Excel, upload foto, dan restore backup pada staging.
+8. Ganti seluruh kredensial contoh sebelum sistem dibuka untuk siswa.
 
-## Security Vulnerabilities
+## Operasional sekolah
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- Guru bertanggung jawab membuka/menutup periode praktikum dan memverifikasi activity log.
+- Selesaikan atau batalkan seluruh picking sebelum menutup sesi praktikum.
+- Setiap siswa wajib mereset identitas ketika berganti operator pada perangkat yang sama.
+- Backup database dilakukan harian dan sebelum migrasi/deploy.
+- Data latihan sebaiknya dipisahkan per kelas atau periode agar transaksi antarkelas tidak bercampur.
+- Lakukan restore drill berkala; backup yang belum pernah diuji belum dapat dianggap aman.
 
-## License
+## Catatan keamanan
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- File `.env`, session, compiled view, log, dan build lokal tidak boleh di-commit.
+- Login dibatasi lima percobaan per menit per sumber request.
+- Detail exception disimpan di log dan tidak ditampilkan kepada pengguna.
+- Activity log menyimpan akun serta identitas siswa yang aktif pada saat aksi terjadi.
+
+## Perintah pemeliharaan demo
+
+- `php artisan wms:audit` — pemeriksaan read-only untuk stok negatif, ketidaksesuaian rak, kapasitas, dan harga.
+- `php artisan wms:demo-repair --force` — khusus lokal/testing untuk memperbaiki data demo lama melalui transaksi penyesuaian yang tercatat.
+- `php artisan wms:demo-reset --force` — khusus lokal/testing; menghapus database demo, membuat skema ulang, seed deterministik, lalu menjalankan audit.

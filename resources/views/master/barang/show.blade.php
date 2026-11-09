@@ -1,0 +1,210 @@
+@extends('layouts.app')
+
+@section('title', 'Detail Barang - ' . $item->SKU)
+@section('page_heading', 'Detail Barang: ' . $item->SKU)
+
+@section('content')
+<div class="space-y-5">
+
+    <div class="flex items-center justify-between">
+        <a href="{{ route('master.barang.index') }}"
+           class="btn btn-ghost btn-sm gap-1.5">
+            <i class="fa-solid fa-arrow-left"></i> Kembali ke Master Barang
+        </a>
+        <span class="text-[11px] text-slate-400 font-mono">SKU: {{ $item->SKU }}</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        {{-- LEFT: Detail + Riwayat --}}
+        <div class="lg:col-span-2 space-y-5">
+
+            {{-- Overview Card --}}
+            <div class="wms-card p-6 space-y-4">
+                <div class="flex items-start justify-between border-b border-[#f2f4f6] pb-4">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-widest text-slate-400 font-mono">{{ $item->SKU }}</p>
+                        <h2 class="text-xl font-bold text-slate-900 mt-1">{{ $item->Nama }}</h2>
+                    </div>
+                    @php $isSafe = $item->computed_stok > $item->Min_Stok; @endphp
+                    @if($item->computed_stok == 0)
+                        <span class="badge badge-danger"><i class="fa-solid fa-circle-xmark"></i> Habis</span>
+                    @elseif($isSafe)
+                        <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Aman</span>
+                    @else
+                        <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Reorder</span>
+                    @endif
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    @foreach([
+                        ['Kategori',        $item->Kategori,                                                                              false],
+                        ['Satuan Dasar',    $item->Satuan,                                                                                true],
+                        ['Stok Fisik',      number_format($item->physical_stock) . ' ' . $item->Satuan,                                true],
+                        ['Direservasi',     number_format($item->reserved_stock) . ' ' . $item->Satuan,                                true],
+                        ['Stok Tersedia',   number_format($item->computed_stok) . ' ' . $item->Satuan,                                  true],
+                        ['Min. Stok',       number_format($item->Min_Stok) . ' ' . $item->Satuan,                                       true],
+                        ['Harga Dasar',     'Rp ' . number_format($item->harga, 0, ',', '.') . ' / ' . $item->Satuan,                    true],
+                        ['Nilai Aset Fisik','Rp ' . number_format($item->physical_stock * $item->harga, 0, ',', '.'),                    true],
+                    ] as [$label, $val, $mono])
+                        <div class="p-3 rounded-lg bg-[#f7f9fb] border border-[#eceef0]">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">{{ $label }}</p>
+                            <p class="text-sm font-bold text-slate-900 {{ $mono ? 'font-mono' : '' }}">{{ $val }}</p>
+                        </div>
+                    @endforeach
+
+                    {{-- Lokasi Rak: tampil semua rak jika barang tersebar di beberapa rak --}}
+                    @if($stokPerRak->count() > 1)
+                        <div class="p-3 rounded-lg bg-[#f7f9fb] border border-[#eceef0] col-span-2 sm:col-span-3">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Lokasi Rak</p>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach($stokPerRak as $rakInfo)
+                                    <div class="inline-flex items-center gap-1.5 bg-white border border-[#e2e8f0] rounded-lg px-2.5 py-1.5 text-xs">
+                                        <span class="font-mono font-bold text-secondary">{{ $rakInfo['kode_rak'] }}</span>
+                                        <span class="text-slate-400">·</span>
+                                        <span class="font-mono text-slate-600">
+                                            {{ number_format($rakInfo['fisik']) }} fisik · {{ number_format($rakInfo['reservasi']) }} reservasi · {{ number_format($rakInfo['tersedia']) }} tersedia
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <div class="p-3 rounded-lg bg-[#f7f9fb] border border-[#eceef0]">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Lokasi Rak</p>
+                            <p class="text-sm font-bold text-slate-900 font-mono">{{ $rackName }}</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Riwayat Mutasi --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                {{-- Inbound --}}
+                <div class="wms-card p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-down text-[#10b981]"></i> Riwayat Inbound
+                        </h3>
+                        @if(auth()->user()->isAdmin())
+                        <a href="{{ route('inventory.kartu-stok.detail', $item->SKU) }}"
+                           class="text-[10px] text-secondary hover:underline flex items-center gap-1">
+                            Lihat semua <i class="fa-solid fa-arrow-right text-[9px]"></i>
+                        </a>
+                        @endif
+                    </div>
+                    @if($inboundHistory->count() > 0)
+                        <div class="space-y-2">
+                            @foreach($inboundHistory as $hist)
+                                <div class="flex items-center justify-between p-2.5 rounded-lg bg-[#f7f9fb] border border-[#eceef0] text-xs">
+                                    <div>
+                                        <p class="font-mono font-semibold text-slate-800">{{ $hist->inboundTransaction->No_Resi ?? '-' }}</p>
+                                        <p class="text-[10px] text-slate-400">{{ $hist->inboundTransaction->Tanggal->format('d M Y') }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="block font-mono font-bold text-[#10b981]">+{{ number_format($hist->Qty) }} {{ $item->Satuan }}</span>
+                                        <span class="block text-[10px] font-mono text-slate-400">Rp {{ number_format($hist->Harga_Satuan, 0, ',', '.') }}/{{ $item->Satuan }}</span>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="py-6 text-center text-slate-400 text-xs">
+                            <i class="fa-solid fa-inbox block text-2xl mb-2"></i>
+                            Belum ada riwayat inbound
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Outbound --}}
+                <div class="wms-card p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-up-from-bracket text-[#0058be]"></i> Riwayat Outbound
+                        </h3>
+                        @if(auth()->user()->isAdmin())
+                        <a href="{{ route('inventory.kartu-stok.detail', $item->SKU) }}"
+                           class="text-[10px] text-secondary hover:underline flex items-center gap-1">
+                            Lihat semua <i class="fa-solid fa-arrow-right text-[9px]"></i>
+                        </a>
+                        @endif
+                    </div>
+                    @if($outboundHistory->count() > 0)
+                        <div class="space-y-2">
+                            @foreach($outboundHistory as $hist)
+                                <div class="flex items-center justify-between p-2.5 rounded-lg bg-[#f7f9fb] border border-[#eceef0] text-xs">
+                                    <div>
+                                        <p class="font-mono font-semibold text-slate-800">{{ $hist->outboundTransaction->No_Shipping ?? '-' }}</p>
+                                        <p class="text-[10px] text-slate-400">{{ $hist->outboundTransaction->Tanggal->format('d M Y') }}</p>
+                                    </div>
+                                    <span class="font-mono font-bold text-[#0058be]">-{{ number_format($hist->Qty) }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="py-6 text-center text-slate-400 text-xs">
+                            <i class="fa-solid fa-inbox block text-2xl mb-2"></i>
+                            Belum ada riwayat outbound
+                        </div>
+                    @endif
+                </div>
+
+            </div>
+        </div>
+
+        {{-- RIGHT: QR Code --}}
+        <div>
+            @if(auth()->user()->isAdmin())
+                <div id="qrPrintArea" class="wms-card p-6 space-y-4">
+                    <div class="flex items-center justify-between border-b border-[#f2f4f6] pb-3">
+                        <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-qrcode text-[#0058be]"></i> QR Barcode
+                        </h3>
+                        <span class="text-[10px] bg-slate-900 text-white font-medium px-2 py-0.5 rounded">Admin Only</span>
+                    </div>
+                    <p class="text-xs text-slate-500">Scan untuk identifikasi fisik barang di gudang.</p>
+                    <div class="p-4 bg-[#f7f9fb] rounded-xl border border-[#eceef0] flex items-center justify-center">
+                        <div id="qrcode"></div>
+                    </div>
+                    <div class="bg-[#f2f4f6] p-3 rounded-lg text-[11px] font-mono text-slate-600 break-all">
+                        {{ $qrString }}
+                    </div>
+                    <a href="{{ route('master.barang.label-pdf', $item->SKU) }}"
+                       target="_blank"
+                       class="btn btn-primary w-full justify-center gap-2">
+                        <i class="fa-solid fa-print"></i> Cetak Label QR
+                    </a>
+                </div>
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
+                        QRCode.toCanvas(@json($qrString), {
+                            width: 160,
+                            margin: 1,
+                            color: { dark: "#000000", light: "#ffffff" },
+                            errorCorrectionLevel: "H"
+                        }, function (error, canvas) {
+                            if (error) {
+                                console.error("QR gagal dibuat", error);
+                                return;
+                            }
+                            document.getElementById("qrcode").replaceChildren(canvas);
+                        });
+                    });
+                </script>
+            @else
+                <div class="wms-card p-6 text-center space-y-3">
+                    <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto">
+                        <i class="fa-solid fa-lock text-slate-400 text-lg"></i>
+                    </div>
+                    <h3 class="text-xs font-bold text-slate-700">QR Barcode Restricted</h3>
+                    <p class="text-[11px] text-slate-400">
+                        Fitur ini hanya tersedia untuk akun <strong>Guru (Admin)</strong>.
+                    </p>
+                </div>
+            @endif
+        </div>
+
+    </div>
+</div>
+@endsection

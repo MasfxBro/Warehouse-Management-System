@@ -2,38 +2,68 @@
 
 namespace Database\Factories;
 
+use App\Enums\UserRole;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * Factory: UserFactory
+ *
+ * Menghasilkan data dummy untuk tabel users.
+ * Diperluas dari bawaan Laravel dengan penambahan kolom `role`.
+ * Default role adalah 'user' (Operator/Siswa) sesuai prinsip least privilege.
+ *
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
     /**
-     * The current password being used by the factory.
+     * Password default untuk semua user dummy — di-hash sekali untuk efisiensi.
      */
     protected static ?string $password;
 
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    protected $model = User::class;
+
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'name' => $this->faker->name(),
+            'email' => $this->faker->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'role' => UserRole::User->value,
             'remember_token' => Str::random(10),
         ];
     }
 
+    // =========================================================
+    // STATES
+    // =========================================================
+
     /**
-     * Indicate that the model's email address should be unverified.
+     * State: user dengan role admin.
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::Admin->value,
+        ]);
+    }
+
+    /**
+     * State: user dengan role operator.
+     */
+    public function operator(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::User->value,
+        ]);
+    }
+
+    /**
+     * State: email belum diverifikasi.
      */
     public function unverified(): static
     {
